@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#072a20">
+  <title>마카오 룰렛</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="player">
+    <!-- 입장 -->
+    <section id="v-join" class="hidden">
+      <div class="brand">
+        <div class="logo">🎰 MACAU ROULETTE</div>
+        <div class="sub">DT Outing 2026 · 조 대항 룰렛</div>
+      </div>
+      <div class="card">
+        <div class="field">
+          <label for="name">이름</label>
+          <input id="name" maxlength="12" autocomplete="off" placeholder="예: 홍길동" enterkeyhint="done">
+        </div>
+        <div class="field">
+          <label>우리 조</label>
+          <div class="team-grid" id="team-grid"></div>
+        </div>
+        <button class="btn block" id="join-btn">입장하기</button>
+      </div>
+      <div class="card help" style="margin-top:12px">
+        <b>게임 방법</b><br>
+        ① 칩을 고르고 빨강/검정·홀/짝 같은 칸을 눌러 베팅<br>
+        ② 빔 화면에서 룰렛이 돌아가면 결과 확인<br>
+        ③ <b>우리 조 1인 평균 칩</b>이 가장 많은 조가 우승!<br>
+        칩을 다 잃어도 다음 라운드에 구조 칩이 나옵니다 🙂
+      </div>
+    </section>
+
+    <!-- 게임 -->
+    <section id="v-game" class="hidden">
+      <div class="hud">
+        <div class="hud-row">
+          <div class="who" id="who"></div>
+          <div class="chips num" id="chips"></div>
+        </div>
+        <div class="meta"><span id="m-round"></span><span id="m-team"></span><span id="m-rank"></span></div>
+      </div>
+
+      <div id="p-lobby" class="phase-box card hidden">
+        <div style="font-size:48px">🎲</div>
+        <h2>입장 완료!</h2>
+        <p>운영자가 곧 게임을 시작합니다.<br>빔 화면을 봐 주세요.</p>
+        <p class="gold" id="lobby-team"></p>
+        <button class="btn ghost" id="leave-btn" style="margin-top:10px">이름/조 다시 선택</button>
+      </div>
+
+      <div id="p-betting" class="hidden">
+        <div id="ev-banner" class="event-banner hidden"></div>
+        <div class="bet-top">
+          <div>
+            <div class="muted" style="font-size:13px">베팅 마감까지</div>
+            <div class="timer" id="timer">--</div>
+          </div>
+          <div style="text-align:right">
+            <div class="muted" style="font-size:13px">우리 조 참여</div>
+            <div style="font-size:22px;font-weight:900" id="team-part">-</div>
+          </div>
+        </div>
+        <div class="muted" style="font-size:13px">칩 선택</div>
+        <div class="chip-sel" id="chip-sel"></div>
+        <div class="board" id="board"></div>
+        <div class="section-title">
+          <span>숫자 하나 찍기 <span class="muted" style="font-size:12px">(36배)</span></span>
+          <button id="toggle-num">펼치기 ▾</button>
+        </div>
+        <div class="numgrid hidden" id="numgrid"></div>
+        <div class="section-title"><span>내 베팅</span></div>
+        <div class="mybets" id="mybets"></div>
+      </div>
+
+      <div id="p-locked" class="phase-box card hidden">
+        <div style="font-size:48px">⛔</div>
+        <h2>베팅 마감!</h2>
+        <p>곧 룰렛이 돌아갑니다. 빔 화면을 보세요!</p>
+        <div class="mybets" id="mybets-locked" style="justify-content:center;margin-top:10px"></div>
+      </div>
+
+      <div id="p-spinning" class="phase-box card hidden">
+        <div class="spinner"></div>
+        <h2>룰렛이 돌아갑니다…</h2>
+        <p>빔 화면을 보세요!</p>
+        <div class="mybets" id="mybets-spin" style="justify-content:center;margin-top:10px"></div>
+      </div>
+
+      <div id="p-result" class="phase-box card hidden">
+        <div class="muted" id="res-round"></div>
+        <div class="ball result-big" id="res-ball"></div>
+        <div class="net" id="res-net"></div>
+        <div class="muted" id="res-detail"></div>
+        <div class="res-bets" id="res-bets"></div>
+        <div class="stats">
+          <div class="card"><b id="res-rank"></b><span>내 순위</span></div>
+          <div class="card"><b id="res-team"></b><span>우리 조 순위</span></div>
+        </div>
+        <p id="res-next" style="margin-top:14px"></p>
+      </div>
+
+      <div id="p-final" class="phase-box card hidden">
+        <div style="font-size:56px" id="fin-emoji">🏆</div>
+        <h2 id="fin-title">게임 종료!</h2>
+        <div class="stats">
+          <div class="card"><b id="fin-team"></b><span>우리 조 최종 순위</span></div>
+          <div class="card"><b id="fin-rank"></b><span>내 개인 순위</span></div>
+          <div class="card"><b id="fin-chips"></b><span>최종 칩</span></div>
+          <div class="card"><b id="fin-avg"></b><span>우리 조 1인 평균</span></div>
+        </div>
+        <p>수고하셨습니다! 🎉</p>
+      </div>
+    </section>
+
+    <section id="v-loading" class="phase-box">
+      <div class="spinner"></div>
+      <p class="muted">접속 중…</p>
+    </section>
+  </div>
+
+  <div class="bottom-bar hidden" id="bottom-bar">
+    <div class="inner">
+      <div class="sum">이번 라운드 베팅 <b class="num" id="sum-bet">0</b></div>
+      <button class="btn ghost" id="clear-btn">전부 취소</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/common.js"></script>
+  <script src="/player.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Render Blueprint: Render 대시보드 → New → Blueprint → 이 저장소 선택
+services:
+  - type: web
+    name: macau-roulette
+    runtime: node
+    plan: free            # 행사 당일엔 starter 권장 (free는 15분 미사용 시 잠듦)
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST_PIN
+        sync: false       # 배포 시 운영자 PIN을 직접 입력

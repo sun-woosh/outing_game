@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>마카오 룰렛 · 운영자</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="host">
+    <h1>🎰 마카오 룰렛 운영자</h1>
+
+    <section id="h-login" class="card hidden" style="max-width:360px">
+      <div class="field">
+        <label for="pin">운영자 PIN</label>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="off" style="width:100%">
+      </div>
+      <button class="btn block" id="login-btn">로그인</button>
+    </section>
+
+    <section id="h-main" class="hidden">
+      <div class="links muted" style="margin-bottom:10px">
+        <a href="/beam" target="_blank">빔 화면 열기 ↗</a>
+        <a href="/" target="_blank">참가자 화면 ↗</a>
+        <span id="join-url"></span>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="status" id="status"></div>
+          <button class="btn primary" id="primary"></button>
+          <div class="actions">
+            <button class="btn ghost" id="extend">+15초</button>
+            <button class="btn ghost" id="finish">게임 종료 · 최종 결과</button>
+            <button class="btn ghost" id="reset">칩/라운드 초기화</button>
+            <button class="btn danger" id="wipe">전체 초기화(참가자 삭제)</button>
+          </div>
+          <p class="muted" style="font-size:13px;margin-bottom:0" id="hint"></p>
+        </div>
+
+        <div class="card" id="cfg-card">
+          <b class="gold">게임 설정</b> <span class="muted" style="font-size:12px">(대기 중에만 변경 가능)</span>
+          <div class="cfg" style="margin-top:10px">
+            <label>조 개수</label><input id="c-teams" type="number" min="2" max="20">
+            <label>라운드 수</label><input id="c-rounds" type="number" min="1" max="15">
+            <label>시작 칩</label><input id="c-chips" type="number" min="100" step="100">
+            <label>베팅 시간(초)</label><input id="c-secs" type="number" min="10" max="180">
+            <label>조 이름</label><input id="c-names" placeholder="쉼표로 구분 (비우면 1조, 2조…)">
+            <label>라운드 이벤트</label><input id="c-events" placeholder="normal,team,lucky,normal,jackpot">
+          </div>
+          <p class="muted" style="font-size:12px">이벤트: normal(일반) · team(팀워크: 조 참여자 70%↑ 적중 시 조원 전원 +200) · lucky(럭키넘버 50배) · jackpot(당첨 수익 2배)</p>
+          <button class="btn" id="save-cfg">설정 저장</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <b class="gold" id="plist-title">참가자</b>
+          <input id="search" placeholder="이름 검색" style="max-width:200px">
+        </div>
+        <div style="overflow:auto;max-height:60vh;margin-top:8px">
+          <table>
+            <thead><tr><th>이름</th><th>조</th><th class="r">보유</th><th class="r">합계</th><th class="r">베팅</th><th class="r">구조칩</th><th></th></tr></thead>
+            <tbody id="plist"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/common.js"></script>
+  <script src="/host.js"></script>
+</body>
+</html>

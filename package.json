@@ -1,0 +1,23 @@
+{
+  "name": "macau-roulette",
+  "version": "2.0.0",
+  "private": true,
+  "description": "DT Outing 2026 - 마카오 룰렛 (80~100명 실시간 팀 대항 룰렛 게임)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "loadtest": "node scripts/loadtest.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
+  }
+}
