@@ -2,3 +2,4 @@ node_modules/
 data/
 .DS_Store
 *.log
+# dist/ 는 Render가 별도 빌드 없이 실행하도록 커밋합니다 (npm run build 후 함께 커밋)

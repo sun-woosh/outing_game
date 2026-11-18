@@ -1,0 +1,18 @@
+.pc-hand{display:flex;justify-content:center;align-items:flex-start;flex-wrap:wrap;gap:8px;min-width:0}
+.pc-card{position:relative;flex:none;width:72px;aspect-ratio:5/7;border-radius:5px;overflow:hidden;box-shadow:0 3px 9px #0004,0 1px 2px #0003}
+.pc-face{background:#fffcf4;border:1px solid #e3d8c7;font-family:Georgia,serif;color:#1d2528}
+.pc-face.pc-red{color:#a91f31}
+.pc-corner{position:absolute;z-index:2;display:flex;flex-direction:column;align-items:center;line-height:1;font-weight:700}
+.pc-corner b{font-size:15px;letter-spacing:-.05em}.pc-corner span{font-size:11px;line-height:.9}
+.pc-top{left:5px;top:5px}.pc-bottom{right:5px;bottom:5px;transform:rotate(180deg)}
+.pc-pips,.pc-court-svg{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.pc-pips text{font-family:Georgia,'Times New Roman',serif;fill:currentColor}
+.pc-back{background:#f9efdd;border:1px solid #d7cbb6;padding:4px}
+.pc-back-frame{width:100%;height:100%;display:grid;place-items:center;border:2px solid #c6a56c;outline:1px solid #5c2027;outline-offset:-5px;background-color:#5c2027;background-image:repeating-linear-gradient(45deg,#d4b4751a 0 1px,transparent 1px 8px),repeating-linear-gradient(-45deg,#d4b4751a 0 1px,transparent 1px 8px)}
+.pc-back-mark{width:90%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;color:#f0dfbd;background:#5c2027;border-top:1px solid #c4a36c;border-bottom:1px solid #c4a36c;padding:7px 0;text-align:center}
+.pc-back-mark span{font-size:10px;line-height:1}.pc-back-mark strong{font:700 7px Arial,sans-serif;letter-spacing:.12em}.pc-back-mark small{font:600 5px Arial,sans-serif;letter-spacing:.12em}
+.pc-hand-small{justify-content:flex-start;gap:4px}.pc-hand-small .pc-card{width:38px;border-radius:3px}.pc-hand-small .pc-top{left:3px;top:3px}.pc-hand-small .pc-bottom{right:3px;bottom:3px}.pc-hand-small .pc-corner b{font-size:9px}.pc-hand-small .pc-corner span{font-size:7px}.pc-hand-small .pc-back{padding:2px}.pc-hand-small .pc-back-frame{border-width:1px;outline-offset:-3px}.pc-hand-small .pc-back-mark{gap:1px;padding:4px 0}.pc-hand-small .pc-back-mark span{font-size:6px}.pc-hand-small .pc-back-mark strong{font-size:4px;letter-spacing:.06em}.pc-hand-small .pc-back-mark small{display:none}
+@media(max-width:480px){.pc-card{width:62px}.pc-corner b{font-size:13px}.pc-corner span{font-size:10px}.pc-hand-small .pc-card{width:34px}}
+
+.tutorial-card-back{float:right;margin:0 0 6px 10px}
+.tutorial-card-back .pc-card{width:56px}

@@ -1,0 +1,114 @@
+/* Let the projector focus on the wheel during betting and the reveal. */
+.projector .roulette-focus{display:block}
+.projector .roulette-focus>.table{padding:0;border:0;background:none;box-shadow:none}
+.projector .roulette-focus .table-top{display:none}
+.projector .roulette-focus .table-body{padding:0;justify-content:center}
+.projector .roulette-focus .table-body .wheel-wrap{width:min(70vw, max(180px, calc(100dvh - 210px)), 700px);max-width:100%;flex-shrink:0}
+.projector .game-shell:has(.roulette-focus){padding-top:12px;padding-bottom:0}
+.projector .game-shell:has(.roulette-focus) .game-heading{margin-bottom:10px}
+.projector .game-shell:has(.roulette-focus)>footer{display:none}
+/* After the reveal, keep the winning color readable beside the standings. */
+.projector .game-shell:has(.roulette-stage:not(.roulette-focus)){padding-top:12px;padding-bottom:12px}
+.projector .game-shell:has(.roulette-stage:not(.roulette-focus)) .game-heading{margin-bottom:12px}
+.projector .roulette-stage:not(.roulette-focus)>.table{padding:16px 20px}
+.projector .roulette-stage:not(.roulette-focus) .table-body{flex-direction:column;gap:8px;padding:8px 0}
+.projector .roulette-stage:not(.roulette-focus) .table-body .wheel-wrap{width:min(68%, max(140px, calc(100dvh - 385px)), 260px)}
+.projector .roulette-stage:not(.roulette-focus) .wheel-caption{width:100%;text-align:center}
+.projector .roulette-stage:not(.roulette-focus) .wheel-caption small{margin-bottom:4px}
+.projector .roulette-stage:not(.roulette-focus) .wheel-caption strong{white-space:nowrap;word-break:keep-all;line-height:1.1}
+.projector .roulette-stage:not(.roulette-focus) .wheel-caption p{margin:6px 0 0}
+@media(max-width:600px){
+  .projector .roulette-focus .table-body .wheel-wrap{width:min(82vw, max(180px, calc(100dvh - 185px)), 520px)}
+}
+
+.bet-panel .skip-bet-button { min-height: 50px; margin-top: 12px; font-size: 13px; }
+.bet-panel .skip-bet-hint { margin: 8px 0 0; font-size: 12px; text-align: center; }
+.bet-panel .waiting .outline { min-height: 50px; font-size: 13px; }
+
+/* Make each result, change and chip balance legible at a glance. */
+.roulette-leaderboard-results .rank-row{padding:16px 10px;gap:14px}
+.roulette-leaderboard-results .rank-row:nth-child(odd){background:#fff8e908}
+.roulette-leaderboard-results .rank-number{color:#dfbd7a;font-size:clamp(20px,2vw,28px)}
+.roulette-leaderboard-results .rank-name strong{font-size:clamp(15px,1.4vw,20px)}
+.roulette-leaderboard-results .rank-name span{font-size:clamp(11px,1vw,14px);color:#cdb8a9}
+.roulette-rank-change{min-width:80px;text-align:right;font-size:clamp(15px,1.5vw,21px);font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.roulette-rank-change small{font-size:.7em;font-weight:600;margin-left:2px}
+.roulette-rank-change.positive{color:#f2cf83}
+.roulette-rank-change.negative{color:#ff9b91}
+.roulette-rank-change.neutral{color:#d1b9a9}
+.roulette-leaderboard-results .rank-chips{min-width:72px}
+.roulette-leaderboard-results .rank-chips strong{font-size:clamp(21px,2vw,30px);color:#fff0d8}
+.roulette-leaderboard-results .rank-chips small{font-size:10px;color:#cdb8a9}
+.projector .roulette-leaderboard-results .rank-name strong{font-size:clamp(18px,1.8vw,26px)}
+.projector .roulette-leaderboard-results .roulette-rank-change{font-size:clamp(18px,1.8vw,26px)}
+.projector .roulette-leaderboard-results .rank-chips strong{font-size:clamp(25px,2.4vw,34px)}
+@media(max-width:480px){
+  .roulette-leaderboard-results .rank-row{gap:7px;padding:12px 4px}
+  .roulette-leaderboard-results .rank-number{min-width:22px;font-size:18px}
+  .roulette-leaderboard-results .rank-name strong{font-size:14px}
+  .roulette-leaderboard-results .rank-name span{font-size:10px}
+  .roulette-rank-change{min-width:0;font-size:14px}
+  .roulette-leaderboard-results .rank-chips{min-width:0}
+  .roulette-leaderboard-results .rank-chips strong{font-size:18px}
+  .roulette-leaderboard-results .rank-chips small{font-size:9px}
+}
+@media(max-width:480px){
+  .roulette-rank-change,.roulette-leaderboard-results .rank-chips{max-width:30%;overflow-wrap:anywhere;white-space:normal}
+}
+.host-round-results h2{font-size:clamp(20px,2vw,28px)}
+.host-round-results-grid{margin-top:18px}
+.host-round-result strong{font-size:16px;color:#fff0dc}
+.host-round-result span{font-size:14px;line-height:1.5;color:#e0cbbb}
+.host-round-result b{font-size:16px}
+/* A projected leaderboard can show more tables at once on wide screens. */
+@media(min-width:1100px){
+  .projector .roulette-leaderboard-results .ranking{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
+  .projector .roulette-leaderboard-results .rank-row{gap:7px;padding:12px 4px}
+  .projector .roulette-leaderboard-results .rank-number{min-width:24px;font-size:22px}
+  .projector .roulette-leaderboard-results .rank-name strong{font-size:17px}
+  .projector .roulette-leaderboard-results .rank-name span{font-size:11px}
+  .projector .roulette-leaderboard-results .roulette-rank-change{min-width:0;font-size:17px}
+  .projector .roulette-leaderboard-results .rank-chips{min-width:0}
+  .projector .roulette-leaderboard-results .rank-chips strong{font-size:23px}
+}
+
+.participant-roulette-result{padding:4px 0 0}
+.participant-roulette-result p{margin:0 0 12px;color:#cdb7a6;font-size:13px;line-height:1.6}
+.participant-roulette-result p strong{color:#f2d18e;font-size:20px;letter-spacing:.04em}
+.participant-roulette-result>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid #92714a;background:#251416}
+.participant-roulette-result>div>span{font-size:12px;color:#d3bcae}
+.participant-roulette-result>div>strong{font-size:24px;color:#f2d18e;font-variant-numeric:tabular-nums;white-space:nowrap}
+.participant-roulette-result>div>strong.negative{color:#ffa399}
+.participant-roulette-result>div>strong small{font-size:12px;margin-left:3px}
+.participant-roulette-result>p:last-child{margin:13px 0 0;color:#bda69a}
+@media(max-width:480px){.participant-roulette-result>div{padding:12px}.participant-roulette-result>div>strong{font-size:20px}}
+
+/* A readable, touch-friendly betting panel for participants. */
+.participant.team-betting .bet-panel{min-width:0}
+.participant.team-betting .bet-panel .card-kicker{font-size:12px;letter-spacing:.12em}
+.participant.team-betting .chips-total{gap:10px;margin:12px 0 4px;min-width:0}
+.participant.team-betting .chips-total strong{font-size:clamp(42px,10vw,58px);overflow-wrap:anywhere}
+.participant.team-betting .chips-total span{font-size:12px;font-weight:700}
+.participant.team-betting .bet-panel h2{font-size:24px;margin-top:0}
+.participant.team-betting .bet-panel .muted{font-size:14px}
+.participant.team-betting .color-choice{gap:10px}
+.participant.team-betting .color-button{position:relative;display:flex;align-items:center;gap:9px;min-width:0;min-height:76px;padding:14px;color:#fff7ed;border:1px solid #8d5d54;text-align:left}
+.participant.team-betting .color-button.red{background:#8f2733}
+.participant.team-betting .color-button.black{background:#171518;border-color:#75635e}
+.participant.team-betting .color-button.selected{border:3px solid #f2d38d;box-shadow:0 0 0 2px #f2d38d44}
+.participant.team-betting .color-button .bet-color-dot{flex:none;font-size:20px;line-height:1;margin:0;color:#fff2e8;text-shadow:none}
+.participant.team-betting .color-button .bet-color-name{min-width:0;flex:1;color:#fff7ed;font-size:18px;line-height:1.2;margin:0}
+.participant.team-betting .color-button .bet-color-name small{display:block;float:none;margin:4px 0 0;color:#ead8ca;font-size:10px;letter-spacing:.1em}
+.participant.team-betting .color-button .bet-color-check{display:grid;place-items:center;flex:none;width:23px;height:23px;border-radius:50%;background:#f2d38d;color:#25150f;font-size:15px;margin:0}
+.participant.team-betting .bet-panel label{font-size:14px;margin-top:22px}
+.participant.team-betting .amount-input{min-height:58px;border-color:#967460}
+.participant.team-betting .amount-input input{font-size:22px}
+.participant.team-betting .amount-input span{font-size:11px;font-weight:700}
+.participant.team-betting .quick-bets{gap:10px}
+.participant.team-betting .quick-bets button{flex:1;min-height:48px;font-size:13px}
+.participant.team-betting .bet-submit{min-height:58px;justify-content:center;position:relative;font-size:16px}
+.participant.team-betting .bet-submit span{position:absolute;right:18px}
+.participant.team-betting .skip-bet-button{min-height:54px;font-size:14px;border-color:#9d7969;color:#f0dfcf}
+.participant.team-betting .bet-confirm{padding:12px;border:1px solid #8b7049;background:#5b472e55;font-size:13px;line-height:1.5}
+.participant.team-betting .skip-bet-hint{font-size:12px}
+@media(max-width:360px){.participant.team-betting .color-button{gap:6px;padding:10px}.participant.team-betting .color-button .bet-color-name{font-size:16px}.participant.team-betting .color-button .bet-color-check{width:20px;height:20px;font-size:13px}}

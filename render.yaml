@@ -2,6 +2,7 @@
 services:
   - type: web
     name: macau-roulette
+    # dist/ 에 빌드 결과가 커밋되어 있어 별도 빌드가 필요 없습니다
     runtime: node
     plan: free            # 행사 당일엔 starter 권장 (free는 15분 미사용 시 잠듦)
     buildCommand: npm ci --omit=dev
