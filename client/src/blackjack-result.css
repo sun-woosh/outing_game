@@ -1,0 +1,72 @@
+/* Results emphasize the chip standings; live card controls remain unchanged. */
+.blackjack-result-ranking{display:grid;gap:6px}
+.blackjack-result-row{min-width:0;display:grid;grid-template-columns:42px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:11px 13px;border:1px solid #68473e;background:#1b0d0e}
+.blackjack-result-row.mine{border-color:#d9b979;background:#d8ba7712}
+.blackjack-result-rank{font:24px Georgia,serif;color:#b29a86;white-space:nowrap}
+.blackjack-result-rank.first{color:#e6c682}
+.blackjack-result-rank small{font:11px system-ui,sans-serif;margin-left:2px}
+.blackjack-result-name{font-size:14px;color:#f7e9d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blackjack-result-name small{font-size:9px;color:#d8b773}
+.blackjack-result-name-short{display:none}
+.blackjack-result-change{font-size:16px;font-weight:800;color:#d0bbab;white-space:nowrap}
+.blackjack-result-change.positive{color:#ebca84}
+.blackjack-result-change.negative{color:#f19188}
+.blackjack-result-change small,.blackjack-result-chips small{font-size:10px;font-weight:600;color:#bca89b}
+.blackjack-result-chips{font-size:17px;text-align:right;white-space:nowrap;color:#f7e9d6}
+.projector .blackjack-result-grid{grid-template-columns:1fr}
+.projector .blackjack-result-grid .blackjack-result-leaderboard{grid-column:1 / -1;grid-row:auto}
+.projector .blackjack-result-grid .blackjack-result-ranking{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px}
+.projector .blackjack-result-grid .blackjack-result-ranking.many{grid-template-columns:repeat(3,minmax(0,1fr))}
+.projector .blackjack-result-row{min-height:clamp(35px,6.2vh,54px);padding:6px 12px}
+.projector .blackjack-result-ranking.many .blackjack-result-row{min-height:clamp(26px,4.4vh,38px);padding:3px 9px;gap:7px;grid-template-columns:30px minmax(0,1fr) auto auto}
+.projector .blackjack-result-ranking.many .blackjack-result-rank{font-size:18px}
+.projector .blackjack-result-ranking.many .blackjack-result-name,.projector .blackjack-result-ranking.many .blackjack-result-change,.projector .blackjack-result-ranking.many .blackjack-result-chips{font-size:13px}
+.projector .blackjack-result-ranking.many .blackjack-result-change small,.projector .blackjack-result-ranking.many .blackjack-result-chips small{font-size:9px}
+.projector .blackjack-result-ranking.many .blackjack-result-change small:first-child,.projector .blackjack-result-ranking.many .blackjack-result-chips small{display:none}
+.projector:has(.blackjack-result-grid) .topbar{height:60px}
+.projector .game-shell:has(.blackjack-result-grid){padding-top:12px;padding-bottom:10px}
+.projector .game-shell:has(.blackjack-result-grid) .game-heading{margin-bottom:10px}
+.projector .game-shell:has(.blackjack-result-grid) .game-heading h1{font-size:clamp(30px,6vh,48px);margin:6px 0 2px}
+.projector .game-shell:has(.blackjack-result-grid) footer{margin-top:12px}
+.projector .blackjack-result-leaderboard{padding:18px 24px}
+.projector .blackjack-result-leaderboard .section-head{margin-bottom:12px}
+.projector .blackjack-result-leaderboard .blackjack-next-turn{margin:0 0 10px}
+@media(max-width:700px){
+  .blackjack-result-row{grid-template-columns:29px minmax(34px,1fr) auto auto;gap:6px;padding:9px 7px}
+  .blackjack-result-rank{font-size:19px}.blackjack-result-name{font-size:12px}
+  .blackjack-result-name-full,.blackjack-result-name small{display:none}
+  .blackjack-result-name-short{display:inline}
+  .blackjack-result-change,.blackjack-result-chips{font-size:13px}
+  .blackjack-result-change small,.blackjack-result-chips small{font-size:9px}
+  .blackjack-result-change small:first-child,.blackjack-result-chips small{display:none}
+  .projector .blackjack-result-grid .blackjack-result-ranking,.projector .blackjack-result-grid .blackjack-result-ranking.many{grid-template-columns:1fr}
+}
+
+/* A team's own blackjack result: cards, total, then chip change and balance. */
+.participant .participant-blackjack-grid{grid-template-columns:minmax(0,1fr);max-width:720px;margin-inline:auto}
+.participant .participant-blackjack-grid .blackjack-table{width:100%}
+.participant-bj-result{max-width:420px;margin:8px auto 0;padding:18px 22px;border:1px solid #92714a;background:#251416;text-align:center}
+.participant-bj-result-title{color:#c7ad96;font-size:12px;letter-spacing:.08em}
+.participant-bj-result-score{display:flex;align-items:center;justify-content:center;gap:13px;margin:3px 0 15px}
+.participant-bj-result-score>strong{color:#f0d190;font:48px Georgia,serif;line-height:1.1;font-variant-numeric:tabular-nums}
+.participant-bj-result-score>span{border:1px solid #a88953;padding:5px 10px;color:#f3d69e;background:#564229;font-size:12px;font-weight:700}
+.participant-bj-result-score>span.bust{color:#ffb6ad;border-color:#bd7772;background:#5f2b2d}
+.participant-bj-result-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid #76514a;padding-top:14px}
+.participant-bj-result-stats>div+div{border-left:1px solid #76514a}
+.participant-bj-result-stats>div>small{display:block;color:#c7ad9d;font-size:11px;margin-bottom:4px}
+.participant-bj-result-stats strong{color:#f3d498;font-size:23px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.participant-bj-result-stats strong.negative{color:#ffa399}
+.participant-bj-result-stats strong small{margin-left:3px;font-size:12px}
+@media(max-width:480px){.participant-bj-result{padding:15px}.participant-bj-result-score>strong{font-size:42px}.participant-bj-result-stats strong{font-size:20px}}
+
+/* Keep the live total prominent and the timer in the participant header. */
+.participant-blackjack-round{margin:8px 0 0;color:#c5aa96;font-size:10px;letter-spacing:.08em;font-weight:700}
+.participant .blackjack-table .table-top{gap:10px}
+.participant .blackjack-table .blackjack-countdown{flex-shrink:0;padding:7px 11px}
+.participant .blackjack-table .blackjack-countdown strong{font-size:29px}
+.participant .live-hand-total{width:max-content;max-width:100%;margin:18px auto 0;padding:12px 20px;border:1px solid #8a6848;background:#291719;gap:12px;align-items:center}
+.participant .live-hand-total>span{font-size:13px;font-weight:700;color:#d8bfaa}
+.participant .live-hand-total>strong{font-size:42px;line-height:1;font-variant-numeric:tabular-nums}
+.participant .live-hand-total>small{font-size:12px;font-weight:700;color:#f2d69d;background:#564229;border:1px solid #9d7d4d;padding:5px 9px;white-space:nowrap}
+.participant .live-hand-total>small.bust{color:#ffc1b8;background:#5f2b2d;border-color:#bd7772}
+@media(max-width:480px){.participant .blackjack-table .blackjack-countdown{gap:5px;padding:6px 8px}.participant .blackjack-table .blackjack-countdown span,.participant .blackjack-table .blackjack-countdown small{font-size:10px}.participant .blackjack-table .blackjack-countdown strong{font-size:25px}.participant .live-hand-total{gap:9px;padding:10px 14px}.participant .live-hand-total>strong{font-size:38px}}
