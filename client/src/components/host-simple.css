@@ -3,3 +3,19 @@
 @media(max-width:760px){.host-simple .host-next{align-items:stretch;flex-direction:column}.host-simple .host-next .primary{width:100%}.host-current{padding:20px}.host-question-options{grid-template-columns:1fr}.host-invite-body{align-items:start;flex-direction:column}}
 .host-option-edit{display:flex;align-items:end;gap:8px}.host-option-edit label{flex:1;min-width:0}.host-option-edit>button{height:48px;padding:0 10px;border:1px solid #76514a;background:transparent;color:#e2cbb9}.host-question-edit .host-add-option{margin-top:14px}
 .host-start-chips-note,.host-question-order-hint{font-size:14px;line-height:1.6;color:#dbc6b7}.host-start-chips-note{margin:20px 0 0}.host-question-order-hint{margin:12px 0 0}.host-question-order-notice{font-size:13px;line-height:1.5;color:#f1d093;margin:8px 0 0}.host-question-order-notice:empty{display:none}.host-question-title{gap:12px;flex-wrap:wrap}.host-question-actions{display:flex;gap:6px;flex-wrap:wrap}.host-question-actions button{min-height:40px;font-size:13px}.host-question-actions button:disabled{opacity:.4}
+/* 얼굴 카드 인물 편집 */
+.host-face-editor p{line-height:1.6}
+.host-face-editor code{background:#1c1011;padding:1px 6px;border:1px solid #65453c}
+.host-face-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.host-face-status{color:#f1cf88;font-weight:700}
+.host-face-list{display:flex;flex-direction:column;gap:10px;margin:14px 0 18px}
+.host-face-row{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px;border:1px solid #65453c;background:#1c1011}
+.host-face-photo{width:84px;aspect-ratio:3/4;border:1px solid #92705e;display:grid;place-items:center;overflow:hidden;cursor:pointer;font-size:12px;color:#bfa99b}
+.host-face-photo img{width:100%;height:100%;object-fit:cover}
+.host-face-fields{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+.host-face-fields label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#c6ad92}
+.host-face-fields input{background:#291516;border:1px solid #76514a;color:#f8eddb;padding:8px 10px;font-size:15px;min-width:0}
+.host-face-remove{background:transparent;border:1px solid #76514a;color:#dfc7b3;padding:8px 12px}
+.host-face-live .face-card{padding:16px;border:0}
+.host-face-live .face-board{grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+@media(max-width:800px){.host-face-row{grid-template-columns:64px 1fr}.host-face-photo{width:64px}.host-face-fields{grid-template-columns:1fr}.host-face-remove{grid-column:span 2}}

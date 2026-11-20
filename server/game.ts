@@ -8,24 +8,26 @@ import { ROULETTE_RESULT_HOLD_MS, ROULETTE_SPIN_MS } from "../client/src/lib/rou
 import type { Card, CardRank, CardSuit } from "../client/src/lib/cards";
 import { DOCUMENT_MINORITIES, DEFAULT_PRACTICE_QUESTION } from "../client/src/lib/minority-questions";
 import { countMinorityChoices } from "../client/src/lib/minority-result";
+import { defaultFaceSettings, faceEnabled, readyPeople, reconcileFace, facePublic, startFaceTutorial, startFaceGame, closeFaceStage, stopFaceAfterTurn, facePick, faceAnswer, validateFacePeople, FaceError, type FaceSettings, type FaceState } from "./face";
+import { photoExists } from "./photos";
 
 type Color = "red" | "black";
 type Bet = { color: Color; amount: number };
 type Status = "waiting" | "playing" | "stand" | "bust";
-type Team = { id: string; table: number; name: string; token: string; chips: number; bet: Bet | null; cards: Card[]; blackjackStatus: Status; blackjackChange: number | null; skipped?: boolean; minorityChoice?: number | null; minorityChange?: number | null };
+type Team = { id: string; table: number; name: string; token: string; chips: number; bet: Bet | null; cards: Card[]; blackjackStatus: Status; blackjackChange: number | null; skipped?: boolean; minorityChoice?: number | null; minorityChange?: number | null; faceChange?: number };
 type HistoryTeam = { id: string; name: string; table: number; color: Color; amount: number; change: number; chips: number };
 type BlackjackHistoryTeam = { id: string; table: number; name: string; cards: Card[]; total: number; status: Status; change: number; chips: number };
 type BlackjackHistory = { round: number; teams: BlackjackHistoryTeam[] };
-type Phase = "lobby" | "blackjack_tutorial" | "blackjack_play" | "blackjack_result" | "minority_tutorial" | "minority_play" | "minority_result" | "roulette_tutorial" | "roulette_betting" | "roulette_result" | "finished";
+type Phase = "lobby" | "face_tutorial" | "face_play" | "face_result" | "blackjack_tutorial" | "blackjack_play" | "blackjack_result" | "minority_tutorial" | "minority_play" | "minority_result" | "roulette_tutorial" | "roulette_betting" | "roulette_result" | "finished";
 type MinorityQuestion = { question: string; options: string[] };
 type MinorityResult = { counts: number[]; winningChoices: number[]; outcome: "minority" | "tie" | "none" };
 type MinorityHistory = { round: number; question: MinorityQuestion; result: MinorityResult; teams: { id: string; table: number; choice: number | null; change: number; chips: number }[] };
-type Settings = { tableCount: number; initialChips: number; blackjackBonus: number; blackjackPenalty: number; blackjackRounds: number; rouletteSpins: number; minorityRounds: number; minorityBonus: number; minorityQuestions: MinorityQuestion[]; minorityPracticeQuestion: MinorityQuestion };
-type Room = { version: 2; room: string; hostToken: string; round: number; phase: Phase; result: Color | null; teams: Team[]; settings: Settings; excludedTables: number[]; minorityQuestionSetVersion?: number; zeroStartVersion?: number; blackjackDeadline?: number | null; blackjackRound?: number; blackjackPractice?: boolean; blackjackPracticePlayed?: boolean; blackjackResultAt?: number | null; blackjackHistory?: BlackjackHistory[]; minorityRound?: number; minorityPractice?: boolean; minorityDeadline?: number | null; minorityResultAt?: number | null; minorityResult?: MinorityResult | null; minorityHistory?: MinorityHistory[]; rouletteSpinStartedAt?: number | null; history: { round: number; result: Color; teams: HistoryTeam[] }[] };
+type Settings = { tableCount: number; initialChips: number; blackjackBonus: number; blackjackPenalty: number; blackjackRounds: number; rouletteSpins: number; minorityRounds: number; minorityBonus: number; minorityQuestions: MinorityQuestion[]; minorityPracticeQuestion: MinorityQuestion } & FaceSettings;
+type Room = { version: 2; room: string; hostToken: string; round: number; phase: Phase; result: Color | null; teams: Team[]; settings: Settings; excludedTables: number[]; minorityQuestionSetVersion?: number; zeroStartVersion?: number; blackjackDeadline?: number | null; blackjackRound?: number; blackjackPractice?: boolean; blackjackPracticePlayed?: boolean; blackjackResultAt?: number | null; blackjackHistory?: BlackjackHistory[]; minorityRound?: number; minorityPractice?: boolean; minorityDeadline?: number | null; minorityResultAt?: number | null; minorityResult?: MinorityResult | null; minorityHistory?: MinorityHistory[]; rouletteSpinStartedAt?: number | null; face?: FaceState | null; history: { round: number; result: Color; teams: HistoryTeam[] }[] };
 type Row = { revision: number; data: string };
 type Payload = Record<string, unknown>;
 const MINORITY_QUESTION_SET_VERSION = 1;
-const defaultSettings: Settings = { tableCount: 14, initialChips: 0, blackjackBonus: 100, blackjackPenalty: 50, blackjackRounds: 1, rouletteSpins: 3, minorityRounds: DOCUMENT_MINORITIES.length, minorityBonus: 100, minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION, minorityQuestions: DOCUMENT_MINORITIES };
+const defaultSettings: Settings = { tableCount: 14, initialChips: 0, blackjackBonus: 100, blackjackPenalty: 50, blackjackRounds: 1, rouletteSpins: 3, minorityRounds: DOCUMENT_MINORITIES.length, minorityBonus: 100, minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION, minorityQuestions: DOCUMENT_MINORITIES, ...defaultFaceSettings };
 function migrateMinorityQuestions(room: Room): boolean {
   if ((room.minorityQuestionSetVersion ?? 0) >= MINORITY_QUESTION_SET_VERSION) return false;
   room.settings = { ...room.settings, minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION, minorityQuestions: DOCUMENT_MINORITIES, minorityRounds: DOCUMENT_MINORITIES.length };
@@ -112,7 +114,11 @@ export function publicState(room: Room, teamToken = "", isHost = false) {
     : [];
   return {
     room: room.room, stage: room.phase.startsWith("roulette_") || room.phase === "finished" ? 2 : 1,
-    round: room.round, phase: room.phase, result: room.result, settings: isHost ? room.settings : { ...room.settings, minorityQuestions: questions }, excludedTables: room.excludedTables,
+    // 얼굴 카드를 하면 1·2·3라운드, 안 하면 소수의 선택 1라운드 · 룰렛 2라운드
+    rounds: faceUsed(room) ? { face: 1, minority: 2, roulette: 3 } : { face: null, minority: 1, roulette: 2 },
+    face: facePublic(room, myTeam?.id ?? null, isHost),
+    // 얼굴 카드 인물 이름·사진은 운영자에게만 (참가자에게는 인원수만)
+    round: room.round, phase: room.phase, result: room.result, settings: isHost ? room.settings : { ...room.settings, minorityQuestions: questions, facePeople: [], facePeopleCount: readyPeople(room.settings).length }, excludedTables: room.excludedTables,
     blackjackDeadline: room.blackjackDeadline ?? null, blackjackRound: room.blackjackRound ?? 1, blackjackPractice: room.blackjackPractice === true, blackjackResultAt: room.blackjackResultAt ?? null, blackjackHistory: isHost ? room.blackjackHistory ?? [] : [], minorityRound: room.minorityRound ?? 1, minorityPractice: room.minorityPractice === true, minorityDeadline: room.minorityDeadline ?? null, minorityResultAt: room.minorityResultAt ?? null, minorityResult: room.minorityResult ?? null, minorityHistory: isHost ? room.minorityHistory ?? [] : [], rouletteSpinStartedAt: room.rouletteSpinStartedAt ?? null, serverTime: Date.now(),
     teams: room.teams.map(team => {
       const isMine = team.id === myTeam?.id;
@@ -126,6 +132,7 @@ export function publicState(room: Room, teamToken = "", isHost = false) {
         minorityChoice: room.phase === "minority_play" && !isMine ? null : team.minorityChoice ?? null,
         minoritySubmitted: typeof team.minorityChoice === "number",
         minorityChange: team.minorityChange ?? null,
+        faceChange: team.faceChange ?? 0,
         bet: !team.bet ? null : hideBet ? { placed: true } : { placed: true, ...team.bet },
       };
     }),
@@ -170,6 +177,15 @@ function startMinorityQuestion(room: Room) {
   room.minorityDeadline = Date.now() + 30_000;
   room.phase = "minority_play";
 }
+/** 얼굴 카드를 이번 게임에서 쓰는지 (진행했거나, 대기실에서 등록돼 있으면) */
+function faceUsed(room: Room) {
+  return !!room.face || room.phase.startsWith("face_") || (room.phase === "lobby" && faceEnabled(room.settings));
+}
+function reconcileAll(room: Room): boolean {
+  const a = reconcileBlackjack(room);
+  const b = reconcileFace(room);
+  return a || b;
+}
 function reconcileBlackjack(room: Room): boolean {
   if (blackjackResultReady(room)) {
     room.blackjackRound = (room.blackjackRound ?? 1) + 1;
@@ -199,9 +215,9 @@ function reconcileBlackjack(room: Room): boolean {
 async function mutate(code: string, operation: (room: Room) => void): Promise<Room> {
   if (store.activeRoom !== code) fail("진행 중인 게임이 변경됐습니다. 다시 입장해 주세요.", 409);
   const { room } = await load(code);
-  const reconciled = reconcileBlackjack(room);
+  const reconciled = reconcileAll(room);
   const snapshot = structuredClone(room);
-  try { operation(room); reconcileBlackjack(room); }
+  try { operation(room); reconcileAll(room); }
   catch (caught) {
     store.rooms[code] = snapshot;
     if (reconciled) onChange();
@@ -213,7 +229,7 @@ async function mutate(code: string, operation: (room: Room) => void): Promise<Ro
 }
 async function loadCurrent(code: string): Promise<Room> {
   const { room, migrated } = await load(code);
-  const transitioned = reconcileBlackjack(room);
+  const transitioned = reconcileAll(room);
   if (transitioned || migrated) onChange();
   return room;
 }
@@ -222,7 +238,7 @@ export function tick(): boolean {
   const code = store.activeRoom;
   const room = code ? store.rooms[code] : null;
   if (!room) return false;
-  if (reconcileBlackjack(room)) { onChange(); return true; }
+  if (reconcileAll(room)) { onChange(); return true; }
   return false;
 }
 export function activeRoomData(): Room | null {
@@ -235,7 +251,7 @@ function requireBlackjackRound(room: Room, value: unknown) {
     fail("블랙잭 턴이 변경되었거나 화면이 오래되었습니다. 새로고침 후 다시 선택해 주세요.", 409);
   }
 }
-function handleError(error: unknown) { if (error instanceof GameError) return json({ error: error.message }, error.status); console.error("Game API error", error); return json({ error: "게임을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 500); }
+function handleError(error: unknown) { if (error instanceof FaceError) return json({ error: error.message }, error.status); if (error instanceof GameError) return json({ error: error.message }, error.status); console.error("Game API error", error); return json({ error: "게임을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 500); }
 
 export type GetParams = { active?: boolean; room?: string | null; teamToken?: string | null; hostToken?: string | null };
 export async function GET(params: GetParams): Promise<ApiResult> {
@@ -285,7 +301,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
     }
     const code = body.room ? codeOf(body.room) : await activeRoom();
     if (!code) fail("진행 중인 게임이 없습니다. 운영자를 기다려 주세요.", 404);
-    const hostActions = ["update_settings", "exclude_table", "include_table", "remove_team", "force_stand", "skip_bet", "undo_skip", "start_blackjack", "start_blackjack_practice", "start_blackjack_game", "settle_blackjack", "start_minority", "start_minority_practice", "start_minority_game", "reveal_minority", "next_minority", "start_roulette", "start_roulette_game", "spin", "next", "finish_no_chips"];
+    const hostActions = ["face_set_people", "start_face", "start_face_game", "face_close", "face_stop", "update_settings", "exclude_table", "include_table", "remove_team", "force_stand", "skip_bet", "undo_skip", "start_blackjack", "start_blackjack_practice", "start_blackjack_game", "settle_blackjack", "start_minority", "start_minority_practice", "start_minority_game", "reveal_minority", "next_minority", "start_roulette", "start_roulette_game", "spin", "next", "finish_no_chips"];
     const expectedHostToken = hostActions.includes(action) ? await hostTokenForPassword() : "";
     if (action === "join") {
       const table = Number(body.table);
@@ -331,6 +347,19 @@ export async function POST(input: unknown): Promise<ApiResult> {
         minorityQuestions = data.minorityQuestions.map(validateMinorityQuestion);
       }
       const minorityPracticeQuestion = data.minorityPracticeQuestion === undefined ? undefined : validateMinorityQuestion(data.minorityPracticeQuestion);
+      // 얼굴 카드 설정 (보내지 않은 항목은 기존 값 유지)
+      const faceNumber = (key: "faceMatchBonus" | "faceNameBonus" | "faceSelectSeconds" | "faceNameSeconds", min: number, max: number, label: string) => {
+        const v = data[key];
+        if (v === undefined) return undefined;
+        if (!Number.isSafeInteger(v) || (v as number) < min || (v as number) > max) fail(`${label}은(는) ${min}~${max} 사이로 설정해 주세요.`);
+        return v as number;
+      };
+      const facePatch: Partial<FaceSettings> = {};
+      const fm = faceNumber("faceMatchBonus", 0, 100000, "짝 맞히기 보너스"); if (fm !== undefined) facePatch.faceMatchBonus = fm;
+      const fn = faceNumber("faceNameBonus", 0, 100000, "이름 정답 보너스"); if (fn !== undefined) facePatch.faceNameBonus = fn;
+      const fs = faceNumber("faceSelectSeconds", 10, 120, "카드 선택 시간"); if (fs !== undefined) facePatch.faceSelectSeconds = fs;
+      const fnS = faceNumber("faceNameSeconds", 10, 120, "이름 입력 시간"); if (fnS !== undefined) facePatch.faceNameSeconds = fnS;
+      if (data.facePeople !== undefined) facePatch.facePeople = validateFacePeople(data.facePeople, photoExists);
       if (data.minorityRounds !== undefined && (!Number.isSafeInteger(data.minorityRounds) || (data.minorityRounds as number) < 1 || (data.minorityRounds as number) > 20)) fail("소수의 선택 문항 수는 1~20으로 설정해 주세요.");
       const room = await mutate(code, game => {
         requireHost(body.hostToken, expectedHostToken);
@@ -339,7 +368,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
         const questions = minorityQuestions ?? game.settings.minorityQuestions;
         const minorityRounds = data.minorityRounds === undefined ? (minorityQuestions ? minorityQuestions.length : game.settings.minorityRounds) : data.minorityRounds as number;
         if (minorityRounds > questions.length) fail("설정한 문항 수만큼 질문을 입력해 주세요.");
-        game.settings = { ...game.settings, ...settings, blackjackRounds: hasBlackjackRounds ? settings.blackjackRounds : game.settings.blackjackRounds, minorityQuestions: questions, minorityPracticeQuestion: minorityPracticeQuestion ?? game.settings.minorityPracticeQuestion, minorityRounds, minorityBonus: minorityBonus === undefined ? game.settings.minorityBonus : minorityBonus as number };
+        game.settings = { ...game.settings, ...settings, blackjackRounds: hasBlackjackRounds ? settings.blackjackRounds : game.settings.blackjackRounds, minorityQuestions: questions, minorityPracticeQuestion: minorityPracticeQuestion ?? game.settings.minorityPracticeQuestion, minorityRounds, minorityBonus: minorityBonus === undefined ? game.settings.minorityBonus : minorityBonus as number, ...facePatch };
         game.excludedTables = game.excludedTables.filter(table => table <= settings.tableCount);
         for (const team of game.teams) team.chips = settings.initialChips;
       });
@@ -365,7 +394,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
     if (action === "remove_team") {
       const room = await mutate(code, game => {
         requireHost(body.hostToken, expectedHostToken);
-        if (!["lobby", "blackjack_tutorial", "blackjack_play", "minority_tutorial", "minority_play", "roulette_tutorial", "roulette_betting"].includes(game.phase)) fail("지금은 테이블을 제외할 수 없습니다.");
+        if (!["lobby", "face_tutorial", "face_play", "face_result", "blackjack_tutorial", "blackjack_play", "minority_tutorial", "minority_play", "roulette_tutorial", "roulette_betting"].includes(game.phase)) fail("지금은 테이블을 제외할 수 없습니다.");
         const index = game.teams.findIndex(t => t.id === body.teamId); if (index < 0) fail("테이블을 찾을 수 없습니다.");
         if (game.phase !== "lobby" && game.teams.length < 2) fail("마지막 테이블은 제외할 수 없습니다.");
         game.teams.splice(index, 1);
@@ -373,13 +402,42 @@ export async function POST(input: unknown): Promise<ApiResult> {
       });
       return json({ state: publicState(room, "", true) });
     }
+    if (action === "start_face" || action === "start_face_game" || action === "face_close" || action === "face_stop") {
+      const room = await mutate(code, game => {
+        requireHost(body.hostToken, expectedHostToken);
+        if (action === "start_face") startFaceTutorial(game);
+        else if (action === "start_face_game") startFaceGame(game);
+        else if (action === "face_close") closeFaceStage(game, body.turnId);
+        else stopFaceAfterTurn(game);
+      });
+      return json({ state: publicState(room, "", true) });
+    }
+    if (action === "face_set_people") {
+      const people = validateFacePeople(body.facePeople, photoExists);
+      const room = await mutate(code, game => {
+        requireHost(body.hostToken, expectedHostToken);
+        if (game.phase !== "lobby") fail("게임 시작 전 대기실에서만 인물을 바꿀 수 있습니다.");
+        game.settings = { ...game.settings, facePeople: people };
+      });
+      return json({ state: publicState(room, "", true) });
+    }
+    if (action === "face_pick" || action === "face_answer") {
+      const teamToken = str(body.teamToken);
+      const room = await mutate(code, game => {
+        const team = requireTeam(game, teamToken);
+        if (action === "face_pick") facePick(game, team.id, body.index, body.turnId);
+        else faceAnswer(game, team.id, body.answer, body.turnId);
+      });
+      return json({ state: publicState(room, teamToken) });
+    }
     if (action === "start_minority") {
       const room = await mutate(code, game => {
         requireHost(body.hostToken, expectedHostToken);
-        if (game.phase !== "lobby") fail("이미 게임을 시작했습니다.");
+        if (game.phase !== "lobby" && game.phase !== "face_result") fail("이미 게임을 시작했습니다.");
         if (!game.teams.length) fail("참여한 테이블이 없습니다.");
         game.settings.initialChips = 0;
-        for (const team of game.teams) team.chips = 0;
+        // 얼굴 카드에서 얻은 칩은 그대로 이어 갑니다
+        if (game.phase === "lobby") for (const team of game.teams) team.chips = 0;
         game.minorityRound = 1; game.minorityHistory = []; game.minorityResult = null;
         game.phase = "minority_tutorial";
       });

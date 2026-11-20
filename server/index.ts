@@ -12,7 +12,8 @@ import http from "node:http";
 import express from "express";
 import compression from "compression";
 import { Server, type Socket } from "socket.io";
-import { GET, POST, tick, setChangeListener, exportStore, importStore, store, type ApiResult } from "./game";
+import { GET, POST, tick, setChangeListener, exportStore, importStore, store, hostTokenForPassword, activeRoomData, type ApiResult } from "./game";
+import { initPhotos, getPhoto, savePhotoDataUrl, photoDataUrl } from "./photos";
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -23,6 +24,8 @@ const BROADCAST_MIN_INTERVAL_MS = 200;
 if (!process.env.GAME_HOST_PASSWORD && !process.env.HOST_PIN) {
   console.warn("[경고] 운영자 비밀번호(GAME_HOST_PASSWORD 또는 HOST_PIN)가 설정되지 않았습니다. 운영자 로그인이 불가능합니다.");
 }
+
+initPhotos(DATA_DIR);
 
 // ------------------------------------------------------------------ 상태 저장/복구
 try {
@@ -74,7 +77,7 @@ const app = express();
 app.set("trust proxy", true);
 app.disable("x-powered-by");
 app.use(compression()); // 화면 파일 약 430KB → 약 130KB
-app.use(express.json({ limit: "64kb" }));
+app.use("/api/game", express.json({ limit: "64kb" }));
 
 app.get("/healthz", (_req, res) => {
   res.json({ ok: true, room: store.activeRoom, sockets: io.engine.clientsCount });
@@ -93,6 +96,43 @@ app.get("/api/game", async (req, res) => {
 app.post("/api/game", async (req, res) => {
   const r = await guardedPost(req.body, req.ip || "?");
   res.status(r.status).set("Cache-Control", "no-store").json(r.body);
+});
+
+// ------------------------------------------------------------------ 얼굴 카드 사진
+// 사진 주소는 추측할 수 없는 id이고, 참가자 화면에는 카드가 뒤집힐 때만 주소가 전달됩니다.
+app.get("/photos/:id", (req, res) => {
+  const p = getPhoto(req.params.id);
+  if (!p) return res.status(404).end();
+  res.set("Content-Type", p.mime).set("Cache-Control", "private, max-age=86400").send(p.data);
+});
+const isHostReq = async (req: express.Request) => {
+  const t = req.get("x-host-token");
+  return !!t && t === await hostTokenForPassword().catch(() => "");
+};
+const bigJson = express.json({ limit: "40mb" });
+// 사진 한 장 업로드 → { id }
+app.post("/api/face/photo", bigJson, async (req, res) => {
+  if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
+  const id = savePhotoDataUrl(req.body?.data);
+  if (!id) return res.status(400).json({ error: "JPG/PNG/WEBP 이미지(1.5MB 이하)만 올릴 수 있습니다." });
+  res.json({ id });
+});
+// 인물+사진 전체를 파일로 내려받기 (재배포로 사진이 지워졌을 때 다시 불러오기용)
+app.get("/api/face/export", async (req, res) => {
+  if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
+  const room = activeRoomData();
+  const people = (room?.settings.facePeople || []).map(p => ({ name: p.name, aliases: p.aliases, photo: p.photo ? photoDataUrl(p.photo) : null }));
+  res.set("Content-Disposition", 'attachment; filename="face-cards.json"').json({ type: "all-in-macau-face-cards", version: 1, people });
+});
+// 파일에서 불러오기 (대기실에서만)
+app.post("/api/face/import", bigJson, async (req, res) => {
+  const hostToken = req.get("x-host-token") || "";
+  if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
+  const list = req.body?.people;
+  if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "얼굴 카드 파일 형식이 아닙니다." });
+  const people = list.map((p: Record<string, unknown>) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
+  const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
+  res.status(r.status).json(r.body);
 });
 
 // 화면 (React 빌드 결과)
