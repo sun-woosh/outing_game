@@ -363,11 +363,8 @@ export async function POST(input: unknown): Promise<ApiResult> {
           // 같은 테이블 번호로 들어오면 같은 테이블로 연결 (테이블당 여러 폰 가능)
           const existing = game.teams.find(team => team.table === table);
           if (existing) { teamToken = existing.token; return; }
-          if (game.phase === "finished") fail("게임이 끝났습니다.");
-          // 늦게 온 테이블도 0칩으로 참여. 얼굴 카드 중이면 맨 마지막 차례로
-          const team: Team = { id: crypto.randomUUID(), table, name: `${table}번 테이블`, token: teamToken, chips: 0, bet: null, skipped: false };
-          game.teams.push(team);
-          if (game.face && game.phase === "face_play") game.face.order.push(team.id);
+          if (game.phase !== "lobby") fail("게임이 시작되어 새로운 테이블은 참여할 수 없습니다.");
+          game.teams.push({ id: crypto.randomUUID(), table, name: `${table}번 테이블`, token: teamToken, chips: 0, bet: null, skipped: false });
         });
         return json({ teamToken, state: publicState(room, teamToken) });
       }

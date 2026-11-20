@@ -167,7 +167,7 @@ test("재시작해도 진행 상태 유지", async () => {
   assert.deepStrictEqual(after.state.teams.map(x => x.chips), before.state.teams.map(x => x.chips));
 });
 
-test("운영 도구: 일시정지·연장·자동 마감·칩 조정·늦은 입장", async () => {
+test("운영 도구: 일시정지·연장·칩 조정·게임 중 입장 제한", async () => {
   const created = await post({ action: "create", hostToken });
   room = created.body.room;
   const s = created.body.state.settings;
@@ -188,10 +188,9 @@ test("운영 도구: 일시정지·연장·자동 마감·칩 조정·늦은 입
   assert.strictEqual(st.paused, null);
   assert.ok(st.minorityDeadline - Date.now() > 23000);
   assert.strictEqual((await post({ action: "minority_choose", room, teamToken: a, minorityRound: 1, choice: 0 })).status, 200);
-  // 늦게 온 테이블도 게임 중 입장 가능 (0칩)
-  const late = await post({ action: "join", table: 3 });
-  assert.strictEqual(late.status, 200);
-  assert.strictEqual(late.body.state.teams.find(t => t.table === 3).chips, 0);
+  // 게임이 시작되면 새 테이블은 입장 불가, 이미 있는 테이블 번호로는 입장 가능
+  assert.strictEqual((await post({ action: "join", table: 3 })).status, 400);
+  assert.strictEqual((await post({ action: "join", table: 1 })).body.teamToken, a);
   // 칩 조정
   const team1 = st.teams.find(t => t.table === 1);
   assert.strictEqual((await H("adjust_chips", { teamId: team1.id, delta: 30, reason: "테스트" })).status, 200);

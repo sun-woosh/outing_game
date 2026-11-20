@@ -849,15 +849,13 @@ async function POST(input) {
         const room = mutate(code, (game) => {
           if (table > game.settings.tableCount) fail2(`\uD14C\uC774\uBE14 \uBC88\uD638 1~${game.settings.tableCount}\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694.`);
           if (game.excludedTables.includes(table)) fail2("\uCC38\uC5EC \uB300\uC0C1\uC5D0\uC11C \uC81C\uC678\uB41C \uD14C\uC774\uBE14\uC785\uB2C8\uB2E4. \uC6B4\uC601\uC790\uC5D0\uAC8C \uBB38\uC758\uD574 \uC8FC\uC138\uC694.");
-          const existing = game.teams.find((team2) => team2.table === table);
+          const existing = game.teams.find((team) => team.table === table);
           if (existing) {
             teamToken = existing.token;
             return;
           }
-          if (game.phase === "finished") fail2("\uAC8C\uC784\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.");
-          const team = { id: import_node_crypto3.webcrypto.randomUUID(), table, name: `${table}\uBC88 \uD14C\uC774\uBE14`, token: teamToken, chips: 0, bet: null, skipped: false };
-          game.teams.push(team);
-          if (game.face && game.phase === "face_play") game.face.order.push(team.id);
+          if (game.phase !== "lobby") fail2("\uAC8C\uC784\uC774 \uC2DC\uC791\uB418\uC5B4 \uC0C8\uB85C\uC6B4 \uD14C\uC774\uBE14\uC740 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          game.teams.push({ id: import_node_crypto3.webcrypto.randomUUID(), table, name: `${table}\uBC88 \uD14C\uC774\uBE14`, token: teamToken, chips: 0, bet: null, skipped: false });
         });
         return json({ teamToken, state: publicState(room, teamToken) });
       }
