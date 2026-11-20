@@ -1,0 +1,16 @@
+.host-blackjack-cards { margin-top: 20px; }
+.host-blackjack-help { color: #b59c90; margin: 10px 0 20px; font-size: 14px; }
+.host-blackjack-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.host-blackjack-team { min-width: 0; padding: 18px; border: 1px solid #674640; background: rgba(16, 8, 10, .46); }
+.host-blackjack-team-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.host-blackjack-team-head strong { color: #f7e9d6; font-size: 16px; }
+.host-blackjack-team-head span { color: #dbbb76; font-size: 12px; white-space: nowrap; }
+.host-blackjack-team.bust .host-blackjack-team-head span { color: #ee8d88; }
+.host-blackjack-hand { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; min-height: 46px; align-items: center; }
+.host-blackjack-card { display: grid; place-items: center; width: 35px; height: 46px; border-radius: 3px; background: #f5ead9; color: #371a1c; font-weight: 800; font-size: 17px; box-shadow: 0 2px 4px #0005; }
+.host-blackjack-total { display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid #65453f; padding-top: 10px; color: #bba195; font-size: 13px; }
+.host-blackjack-total strong { color: #f2d28c; font-size: 23px; }
+.host-blackjack-team.bust .host-blackjack-total strong { color: #ee8d88; }
+@media (max-width: 520px) { .host-blackjack-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .host-blackjack-team { padding: 12px; } .host-blackjack-card { width: 30px; height: 40px; font-size: 15px; } }
+
+.host-blackjack-history-turn{border-top:1px solid #76514a80;padding:14px 0}.host-blackjack-history-turn h3{color:#f3d291;font-size:16px;margin:0 0 8px}.host-blackjack-history-list{display:grid;gap:6px}.host-blackjack-history-row{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;color:#d0b8a8;font-size:13px;padding:7px 0}.host-blackjack-history-row strong{color:#f7e9d6}.host-blackjack-history-row b{color:#f4d28c}

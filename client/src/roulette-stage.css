@@ -55,11 +55,6 @@
 @media(max-width:480px){
   .roulette-rank-change,.roulette-leaderboard-results .rank-chips{max-width:30%;overflow-wrap:anywhere;white-space:normal}
 }
-.host-round-results h2{font-size:clamp(20px,2vw,28px)}
-.host-round-results-grid{margin-top:18px}
-.host-round-result strong{font-size:16px;color:#fff0dc}
-.host-round-result span{font-size:14px;line-height:1.5;color:#e0cbbb}
-.host-round-result b{font-size:16px}
 /* A projected leaderboard can show more tables at once on wide screens. */
 @media(min-width:1100px){
   .projector .roulette-leaderboard-results .ranking{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}

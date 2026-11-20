@@ -1,0 +1,14 @@
+.host-blackjack-ranking { margin-top: 20px; }
+.host-blackjack-ranking-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; list-style: none; padding: 0; margin: 20px 0 0; }
+.host-blackjack-ranking-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; align-items: baseline; padding: 14px 16px; border: 1px solid #674640; background: rgba(16, 8, 10, .46); }
+.host-blackjack-rank { color: #e8c47d; font-family: Georgia, serif; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.host-blackjack-ranking-item > strong { color: #f7e9d6; font-size: 14px; }
+.host-blackjack-rank-change { grid-column: 1 / -1; color: #d9c2b1; font-size: 13px; }
+.host-blackjack-rank-change.positive { color: #f1d28c; }
+.host-blackjack-rank-change.negative { color: #f5aaa0; }
+.host-blackjack-rank-chips { grid-column: 1 / -1; color: #bda598; font-size: 12px; }
+.host-blackjack-rank-chips b { color: #f4dfb9; font-size: 15px; }
+@media (max-width: 520px) {
+  .host-blackjack-ranking-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .host-blackjack-ranking-item { padding: 12px; gap: 7px; }
+}

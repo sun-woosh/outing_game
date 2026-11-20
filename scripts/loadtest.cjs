@@ -11,6 +11,8 @@ const TABLES = Number(process.argv[4]) || 14;
 const PASSWORD = process.env.HOST_PASSWORD || "2026";
 const QUESTIONS = Number(process.env.QUESTIONS) || 3;
 const SPINS = Number(process.env.SPINS) || 3;
+const FACES = process.env.FACES === undefined ? 8 : Number(process.env.FACES); // 얼굴 카드 인물 수 (0이면 건너뜀)
+const fakeJpeg = n => "data:image/jpeg;base64," + Buffer.concat([Buffer.from("ffd8ffe000104a464946", "hex"), Buffer.from("loadtest-" + n)]).toString("base64");
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const lat = [];
@@ -58,7 +60,52 @@ async function call(s, ev, body, record = true) {
   const reps = new Map();
   for (const s of phones) if (!reps.has(s.table)) reps.set(s.table, s);
 
-  // 1라운드: 소수의 선택 (같은 테이블 여러 폰이 동시에 눌러도 됨)
+  // 얼굴 카드: 대표 폰이 기억으로 카드를 고르고, 모든 폰이 이름을 제출
+  if (FACES >= 2) {
+    const names = Array.from({ length: FACES }, (_, i) => "테스트" + i);
+    const ids = [];
+    for (let i = 0; i < FACES; i++) {
+      const r = await fetch(URL + "/api/face/photo", { method: "POST", headers: { "Content-Type": "application/json", "x-host-token": hostToken }, body: JSON.stringify({ data: fakeJpeg(i) }) });
+      ids.push((await r.json()).id);
+    }
+    await H("face_set_people", { facePeople: names.map((name, i) => ({ name, aliases: [], photo: ids[i] })) });
+    await H("start_face");
+    await H("start_face_game");
+    const seen = {};
+    const tf = Date.now();
+    let turns = 0;
+    for (let guard = 0; guard < 400 && hs.phase !== "face_result"; guard++) {
+      await sleep(60);
+      const f = hs.face;
+      if (!f || hs.phase !== "face_play") continue;
+      f.board.forEach(c => { if (c.photo) seen[c.index] = c.photo; });
+      if (f.stage === "mismatch" || f.stage === "name_result") { await H("face_close", { turnId: f.turnId }); continue; }
+      if (f.stage === "name") {
+        const person = names[ids.indexOf(f.board.find(c => c.open).photo)];
+        await Promise.all(phones.map(s => call(s, "api", { action: "face_answer", room, teamToken: s.token, answer: Math.random() < 0.6 ? person : "모름", turnId: f.turnId })));
+        await sleep(100);
+        continue;
+      }
+      const cur = hs.teams.find(t => t.id === f.currentTeamId);
+      const rep = reps.get(cur.table);
+      const left = f.board.filter(c => !c.removed).map(c => c.index);
+      const groups = {};
+      for (const i of left) if (seen[i]) (groups[seen[i]] ||= []).push(i);
+      const pair = Object.values(groups).find(a => a.length === 2);
+      const first = pair ? pair[0] : left.find(i => !seen[i]) ?? left[0];
+      const r1 = await call(rep, "api", { action: "face_pick", room, teamToken: rep.token, index: first, turnId: f.turnId });
+      if (r1.status >= 400) continue;
+      seen[first] = r1.body.state.face.board[first].photo;
+      const second = pair ? pair[1] : left.find(i => i !== first && seen[i] === seen[first]) ?? left.find(i => i !== first && !seen[i]) ?? left.find(i => i !== first);
+      const r2 = await call(rep, "api", { action: "face_pick", room, teamToken: rep.token, index: second, turnId: f.turnId });
+      if (r2.body.state) seen[second] = r2.body.state.face.board[second].photo;
+      turns++;
+      await sleep(150);
+    }
+    console.log(`  얼굴 카드: ${turns}차례, ${hs.face.found}/${hs.face.pairs}쌍, ${Date.now() - tf}ms (실제 행사는 차례당 10~40초)`);
+  }
+
+  // 소수의 선택 (같은 테이블 여러 폰이 동시에 눌러도 됨)
   await H("start_minority");
   await H("start_minority_game");
   for (let q = 1; q <= QUESTIONS; q++) {

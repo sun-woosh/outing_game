@@ -40,7 +40,6 @@
 .wheel-pointer::after { content: ""; position: absolute; width: 10px; height: 10px; left: -5px; top: -6px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, white, #e4ddc8 48%, #8b7e69 100%); box-shadow: 0 1px 4px #000b; }
 .table-body .wheel-wrap { width: min(350px, 60%); }
 .projector .table-body .wheel-wrap { width: min(480px, 68%); }
-.preview-roulette .preview-wheel { width: min(260px, 56%); }
 @media (max-width: 600px) {
   .participant .table-body { flex-direction: column; text-align: center; gap: 8px; }
   .participant .table-body .wheel-wrap { width: min(260px, 82%); }
