@@ -85,3 +85,9 @@
 
 /* 한국어는 단어 중간에서 줄바꿈하지 않음 (긴 단어는 넘치지 않게 끊음) */
 body{word-break:keep-all;overflow-wrap:anywhere}
+.message.paused-banner{color:#25140e;background:#dfbd7a;font-size:15px;font-weight:800;text-align:center}
+.projector .message.paused-banner{font-size:22px;padding:14px}
+.bet-clock{font-size:12px;color:#f7eada;font-weight:700}
+.bet-clock strong{font-size:22px;color:#dfbd7a;margin:0 2px}
+.bet-clock.urgent strong{color:#ff8a8a}
+.projector .bet-clock{font-size:18px}.projector .bet-clock strong{font-size:40px}

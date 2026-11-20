@@ -19,11 +19,11 @@ export type FaceSettings = {
 };
 export const defaultFaceSettings: FaceSettings = { facePeople: [], faceMatchBonus: 100, faceNameBonus: 50, faceSelectSeconds: 30, faceNameSeconds: 30 };
 
-export const FACE_MISMATCH_MS = 3_000; // 틀린 카드 보여 주는 시간
-export const FACE_NAME_RESULT_MS = 5_000; // 이름 정답 공개 시간
+const FACE_MISMATCH_MS = 3_000; // 틀린 카드 보여 주는 시간
+const FACE_NAME_RESULT_MS = 5_000; // 이름 정답 공개 시간
 
 type FaceTeam = { id: string; table: number; chips: number; faceChange?: number };
-export type FaceResult = { personId: string; name: string; attackerId: string; winners: string[]; answers: Record<string, string> };
+type FaceResult = { personId: string; name: string; attackerId: string; winners: string[]; answers: Record<string, string> };
 export type FaceState = {
   stage: "select" | "mismatch" | "name" | "name_result" | "done";
   board: string[]; // 카드 위치별 인물 id (인물마다 2장)
@@ -38,7 +38,7 @@ export type FaceState = {
   stopAfterTurn: boolean;
   history: { personId: string; name: string; attackerId: string; winners: string[] }[];
 };
-type FaceRoom = { phase: string; teams: FaceTeam[]; settings: FaceSettings; face?: FaceState | null };
+type FaceRoom = { phase: string; teams: FaceTeam[]; settings: FaceSettings; face?: FaceState | null; paused?: { remaining: number } | null };
 
 class FaceError extends Error { constructor(message: string, public status = 400) { super(message); } }
 const fail = (message: string, status = 400): never => { throw new FaceError(message, status); };
@@ -48,7 +48,7 @@ export const readyPeople = (settings: FaceSettings) => (settings.facePeople || [
 export const faceEnabled = (settings: FaceSettings) => readyPeople(settings).length >= 2;
 
 const normalize = (s: string) => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s.·\-_]/g, "");
-export const nameMatches = (answer: string, person: FacePerson) => [person.name, ...(person.aliases || [])].some(n => n && normalize(n) === normalize(answer));
+const nameMatches = (answer: string, person: FacePerson) => [person.name, ...(person.aliases || [])].some(n => n && normalize(n) === normalize(answer));
 
 function shuffle<T>(items: T[]): T[] {
   const a = [...items];
@@ -185,6 +185,7 @@ export function stopFaceAfterTurn(room: FaceRoom) {
 export function facePick(room: FaceRoom, teamId: string, index: unknown, turnId: unknown, now = Date.now()) {
   const f = room.face;
   if (room.phase !== "face_play" || !f || f.stage !== "select") fail("지금은 카드를 고를 수 없습니다.");
+  if (room.paused) fail("진행자가 잠시 멈췄어요. 잠시만 기다려 주세요.");
   if (turnId !== f!.turnId) fail("이미 다음 차례로 넘어갔습니다.", 409);
   if (currentTeam(room)?.id !== teamId) fail("지금은 다른 테이블 차례입니다.");
   const i = Number(index);
@@ -197,6 +198,7 @@ export function faceAnswer(room: FaceRoom, teamId: string, answer: unknown, turn
   const f = room.face;
   if (f && f.stage === "name_result" && turnId === f.turnId) fail("모든 테이블이 제출해서 이미 채점이 끝났습니다.", 409);
   if (room.phase !== "face_play" || !f || f.stage !== "name") fail("지금은 이름을 제출할 수 없습니다.");
+  if (room.paused) fail("진행자가 잠시 멈췄어요. 잠시만 기다려 주세요.");
   if (turnId !== f!.turnId) fail("이미 다음 차례로 넘어갔습니다.", 409);
   if (typeof answer !== "string" || !answer.trim() || answer.length > 40) fail("이름을 40자 이내로 입력해 주세요.");
   f!.answers[teamId] = (answer as string).trim();

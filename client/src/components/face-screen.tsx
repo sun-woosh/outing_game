@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./face-screen.css";
 import type { Game } from "../types";
 
-export type FaceCard = { index: number; open: boolean; removed: boolean; photo: string | null; name: string | null };
+type FaceCard = { index: number; open: boolean; removed: boolean; photo: string | null; name: string | null };
 export type FaceView = {
   stage: "select" | "mismatch" | "name" | "name_result" | "done";
   turnId: string; deadline: number | null; currentTeamId: string | null; nextTeamId: string | null; order: string[];
@@ -69,7 +69,7 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
 
   const openCards = f.board.filter(c => c.open);
   const statusLine = f.stage === "select"
-    ? isMyTurn ? (f.board.filter(c => c.open).length === 1 ? "한 장 더 골라 주세요!" : "우리 테이블 차례! 카드 두 장을 골라 주세요.") : `${tableName(game, f.currentTeamId)}가 카드를 고르는 중`
+    ? isMyTurn ? (f.board.filter(c => c.open).length === 1 ? "한 장 더 골라 주세요!" : "우리 테이블 차례! 카드 두 장을 골라 주세요.") : `${tableName(game, f.currentTeamId)}이 카드를 고르는 중`
     : f.stage === "mismatch" ? "다른 사람이에요. 카드를 다시 덮습니다."
     : f.stage === "name" ? `${tableName(game, f.currentTeamId)} 짝 성공! 이 사람의 이름은?`
     : `정답: ${f.result?.name ?? ""}`;

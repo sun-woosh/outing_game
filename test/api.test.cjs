@@ -135,8 +135,12 @@ test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
   const rev = await H("reveal_minority", { minorityRound: 1 });
   const chips = Object.fromEntries(rev.body.state.teams.map(x => [x.table, x.chips]));
   assert.deepStrictEqual(chips, { 1: earned[1], 2: earned[2], 3: earned[3], 4: earned[4] + 100 });
+  // 마지막 문제 뒤 중간 순위 → 룰렛
+  assert.strictEqual((await H("minority_summary")).status, 200);
+  assert.strictEqual((await get()).state.phase, "minority_summary");
   await H("start_roulette");
   await H("start_roulette_game");
+  assert.ok((await get()).state.rouletteDeadline > Date.now());
   const c4 = earned[4] + 100;
   assert.strictEqual((await post({ action: "bet", room, teamToken: t[4], color: "red", amount: c4 + 1 })).status, 400);
   assert.strictEqual((await post({ action: "bet", room, teamToken: t[4], color: "red", amount: 60 })).status, 200);
@@ -161,6 +165,51 @@ test("재시작해도 진행 상태 유지", async () => {
   assert.strictEqual(after.state.room, before.state.room);
   assert.strictEqual(after.state.phase, "roulette_result");
   assert.deepStrictEqual(after.state.teams.map(x => x.chips), before.state.teams.map(x => x.chips));
+});
+
+test("운영 도구: 일시정지·연장·칩 조정·게임 중 입장 제한", async () => {
+  const created = await post({ action: "create", hostToken });
+  room = created.body.room;
+  const s = created.body.state.settings;
+  assert.strictEqual((await H("update_settings", { settings: { ...s, tableCount: 5, minoritySeconds: 10 } })).status, 200);
+  const a = (await post({ action: "join", table: 1 })).body.teamToken;
+  await post({ action: "join", table: 2 });
+  await H("start_minority");
+  await H("start_minority_game");
+  // 일시정지 중에는 선택 불가, 남은 시간 보관
+  assert.strictEqual((await H("pause")).status, 200);
+  let st = (await get({ "x-host-token": hostToken })).state;
+  assert.ok(st.paused && st.paused.remaining > 8000 && st.minorityDeadline === null);
+  assert.strictEqual((await post({ action: "minority_choose", room, teamToken: a, minorityRound: 1, choice: 0 })).status, 400);
+  await H("extend"); // 일시정지 중 +15초
+  assert.ok((await get({ "x-host-token": hostToken })).state.paused.remaining > 23000);
+  await H("resume");
+  st = (await get({ "x-host-token": hostToken })).state;
+  assert.strictEqual(st.paused, null);
+  assert.ok(st.minorityDeadline - Date.now() > 23000);
+  assert.strictEqual((await post({ action: "minority_choose", room, teamToken: a, minorityRound: 1, choice: 0 })).status, 200);
+  // 게임이 시작되면 새 테이블은 입장 불가, 이미 있는 테이블 번호로는 입장 가능
+  assert.strictEqual((await post({ action: "join", table: 3 })).status, 400);
+  assert.strictEqual((await post({ action: "join", table: 1 })).body.teamToken, a);
+  // 칩 조정
+  const team1 = st.teams.find(t => t.table === 1);
+  assert.strictEqual((await H("adjust_chips", { teamId: team1.id, delta: 30, reason: "테스트" })).status, 200);
+  assert.strictEqual((await H("adjust_chips", { teamId: team1.id, delta: -1000 })).status, 400);
+  st = (await get({ "x-host-token": hostToken })).state;
+  assert.strictEqual(st.teams.find(t => t.table === 1).chips, 30);
+  assert.strictEqual(st.teams.find(t => t.table === 1).adjustTotal, 30);
+  assert.strictEqual(st.adjustments.length, 1);
+});
+
+test("소수의 선택: 시간이 끝나면 자동 발표", async () => {
+  const created = await post({ action: "create", hostToken });
+  room = created.body.room;
+  await H("update_settings", { settings: { ...created.body.state.settings, minoritySeconds: 10 } });
+  await post({ action: "join", table: 1 });
+  await H("start_minority");
+  await H("start_minority_game");
+  await new Promise(r => setTimeout(r, 10_600));
+  assert.strictEqual((await get()).state.phase, "minority_result");
 });
 
 test("비밀번호 5회 실패 시 잠금", async () => {

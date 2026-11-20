@@ -19,3 +19,13 @@
 .host-face-live .face-card{padding:16px;border:0}
 .host-face-live .face-board{grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 @media(max-width:800px){.host-face-row{grid-template-columns:64px 1fr}.host-face-photo{width:64px}.host-face-fields{grid-template-columns:1fr}.host-face-remove{grid-column:span 2}}
+/* 타이머 조작 · 칩 조정 */
+.host-timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 4px;padding:12px 14px;background:#1c1011;border:1px solid #65453c}
+.host-timer>span{flex:1;font-size:15px;color:#e4d2c4}
+.host-timer b{font-size:24px;color:#dfbd7a}
+.host-adjust-form{display:grid;grid-template-columns:1.2fr .8fr 1.4fr auto;gap:8px;margin-top:12px}
+.host-adjust-form select,.host-adjust-form input{background:#1c1011;border:1px solid #76514a;color:#f8eddb;padding:0 10px;min-height:44px;font-size:15px;min-width:0}
+.host-adjust-form .primary{min-width:0;width:auto}
+.host-adjust-log{list-style:none;padding:0;margin:14px 0 0;font-size:14px;color:#c6ad92;display:flex;flex-direction:column;gap:4px}
+.host-adjust-log b{color:#f8eddb}
+@media(max-width:800px){.host-adjust-form{grid-template-columns:1fr 1fr}}

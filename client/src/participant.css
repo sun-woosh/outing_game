@@ -61,3 +61,6 @@
  .participant .roulette-stage>.table{padding:18px}.participant .roulette-stage>.table .table-body .wheel-wrap{width:min(160px,45%)}.participant .wheel-caption strong{font-size:20px}.participant .bet-panel .color-button{min-height:70px}.participant .bet-panel label{font-size:15px}.participant .tutorial-header h2{font-size:26px}
 }
 @media(max-width:360px){.participant .shell,.participant .game-shell{width:calc(100% - 24px)}.participant .entry,.participant .minority-team .minority-card,.participant .bet-panel{padding-inline:16px}.participant .intro-wheel{width:68px}.participant .minority-team .minority-options button{font-size:16px;gap:9px}.participant .minority-options button>b{font-size:12px}}
+.amount-input span{white-space:nowrap}
+.bet-panel .bet-clock{margin:0 0 6px;font-size:14px}
+.bet-panel .bet-clock strong{font-size:24px}

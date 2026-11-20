@@ -392,6 +392,7 @@ function stopFaceAfterTurn(room) {
 function facePick(room, teamId, index, turnId, now = Date.now()) {
   const f = room.face;
   if (room.phase !== "face_play" || !f || f.stage !== "select") fail("\uC9C0\uAE08\uC740 \uCE74\uB4DC\uB97C \uACE0\uB97C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  if (room.paused) fail("\uC9C4\uD589\uC790\uAC00 \uC7A0\uC2DC \uBA48\uCDC4\uC5B4\uC694. \uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.");
   if (turnId !== f.turnId) fail("\uC774\uBBF8 \uB2E4\uC74C \uCC28\uB840\uB85C \uB118\uC5B4\uAC14\uC2B5\uB2C8\uB2E4.", 409);
   if (currentTeam(room)?.id !== teamId) fail("\uC9C0\uAE08\uC740 \uB2E4\uB978 \uD14C\uC774\uBE14 \uCC28\uB840\uC785\uB2C8\uB2E4.");
   const i = Number(index);
@@ -403,6 +404,7 @@ function faceAnswer(room, teamId, answer, turnId, now = Date.now()) {
   const f = room.face;
   if (f && f.stage === "name_result" && turnId === f.turnId) fail("\uBAA8\uB4E0 \uD14C\uC774\uBE14\uC774 \uC81C\uCD9C\uD574\uC11C \uC774\uBBF8 \uCC44\uC810\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.", 409);
   if (room.phase !== "face_play" || !f || f.stage !== "name") fail("\uC9C0\uAE08\uC740 \uC774\uB984\uC744 \uC81C\uCD9C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  if (room.paused) fail("\uC9C4\uD589\uC790\uAC00 \uC7A0\uC2DC \uBA48\uCDC4\uC5B4\uC694. \uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.");
   if (turnId !== f.turnId) fail("\uC774\uBBF8 \uB2E4\uC74C \uCC28\uB840\uB85C \uB118\uC5B4\uAC14\uC2B5\uB2C8\uB2E4.", 409);
   if (typeof answer !== "string" || !answer.trim() || answer.length > 40) fail("\uC774\uB984\uC744 40\uC790 \uC774\uB0B4\uB85C \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
   f.answers[teamId] = answer.trim();
@@ -502,11 +504,12 @@ function photoDataUrl(id) {
 }
 
 // server/game.ts
-var MINORITY_SECONDS = 30;
 var defaultSettings = {
   tableCount: 14,
   rouletteSpins: 3,
   minorityBonus: 100,
+  minoritySeconds: 30,
+  rouletteBetSeconds: 60,
   minorityRounds: DOCUMENT_MINORITIES.length,
   minorityQuestions: DOCUMENT_MINORITIES,
   minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION,
@@ -610,6 +613,9 @@ function publicState(room, teamToken = "", isHost = false) {
     minorityDeadline: room.minorityDeadline ?? null,
     minorityResult: room.minorityResult ?? null,
     minorityHistory: isHost ? room.minorityHistory ?? [] : [],
+    paused: room.paused ? { remaining: room.paused.remaining } : null,
+    rouletteDeadline: room.rouletteDeadline ?? null,
+    adjustments: isHost ? room.adjustments ?? [] : [],
     round: room.round,
     result: room.result,
     rouletteSpinStartedAt: room.rouletteSpinStartedAt ?? null,
@@ -623,6 +629,8 @@ function publicState(room, teamToken = "", isHost = false) {
         name: team.name,
         chips: team.chips,
         faceChange: team.faceChange ?? 0,
+        minorityTotal: team.minorityTotal ?? 0,
+        adjustTotal: team.adjustTotal ?? 0,
         skipped: team.skipped === true,
         // 선택 중에는 다른 테이블의 선택·베팅 색을 숨김
         minorityChoice: room.phase === "minority_play" && !isMine && !isHost ? null : team.minorityChoice ?? null,
@@ -640,14 +648,67 @@ function load(code) {
   room.excludedTables = (room.excludedTables || []).filter((n) => Number.isInteger(n) && n >= 1 && n <= room.settings.tableCount);
   return room;
 }
+function activeTimer(room) {
+  if (room.phase === "face_play" && room.face && room.face.stage !== "done") return { get: () => room.face.deadline, set: (v) => {
+    room.face.deadline = v;
+  } };
+  if (room.phase === "minority_play") return { get: () => room.minorityDeadline, set: (v) => {
+    room.minorityDeadline = v;
+  } };
+  if (room.phase === "roulette_betting") return { get: () => room.rouletteDeadline, set: (v) => {
+    room.rouletteDeadline = v;
+  } };
+  return null;
+}
+function clearStalePause(room) {
+  if (room.paused && !activeTimer(room)) room.paused = null;
+}
+function revealMinority(game) {
+  const question = currentQuestion(game);
+  if (!question) fail2("\uBB38\uC81C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  const result = countMinorityChoices(question.options.length, game.teams.map((team) => team.minorityChoice));
+  for (const team of game.teams) {
+    const won = typeof team.minorityChoice === "number" && result.winningChoices.includes(team.minorityChoice);
+    team.minorityChange = won ? game.settings.minorityBonus : 0;
+    if (!game.minorityPractice) {
+      team.chips += team.minorityChange;
+      team.minorityTotal = (team.minorityTotal ?? 0) + team.minorityChange;
+    }
+  }
+  game.minorityResult = result;
+  game.minorityResultAt = Date.now();
+  game.minorityDeadline = null;
+  if (!game.minorityPractice) {
+    (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map((team) => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
+  }
+  game.phase = "minority_result";
+}
+function closeBetting(game) {
+  game.rouletteDeadline = null;
+  for (const team of game.teams) if (team.chips > 0 && !team.bet) team.skipped = true;
+}
+function reconcile(room, now = Date.now()) {
+  if (room.paused) return false;
+  let changed = reconcileFace(room, now);
+  if (room.phase === "minority_play" && typeof room.minorityDeadline === "number" && now >= room.minorityDeadline) {
+    revealMinority(room);
+    changed = true;
+  }
+  if (room.phase === "roulette_betting" && typeof room.rouletteDeadline === "number" && now >= room.rouletteDeadline) {
+    closeBetting(room);
+    changed = true;
+  }
+  return changed;
+}
 function mutate(code, operation) {
   if (store.activeRoom !== code) fail2("\uC9C4\uD589 \uC911\uC778 \uAC8C\uC784\uC774 \uBCC0\uACBD\uB410\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC785\uC7A5\uD574 \uC8FC\uC138\uC694.", 409);
   const room = load(code);
-  const advanced = reconcileFace(room);
+  const advanced = reconcile(room);
   const snapshot = structuredClone(room);
   try {
     operation(room);
-    reconcileFace(room);
+    reconcile(room);
+    clearStalePause(room);
   } catch (error) {
     store.rooms[code] = snapshot;
     if (advanced) onChange();
@@ -658,7 +719,8 @@ function mutate(code, operation) {
 }
 function tick() {
   const room = activeRoomData();
-  if (room && reconcileFace(room)) {
+  if (room && reconcile(room)) {
+    clearStalePause(room);
     onChange();
     return true;
   }
@@ -674,7 +736,10 @@ async function GET(params) {
     const code = params.active ? store.activeRoom : codeOf(params.room);
     if (!code) return json({ state: null });
     const room = load(code);
-    if (reconcileFace(room)) onChange();
+    if (reconcile(room)) {
+      clearStalePause(room);
+      onChange();
+    }
     const hostToken = params.hostToken ?? null;
     if (hostToken !== null) requireHost(hostToken, await hostTokenForPassword());
     return json({ state: publicState(room, params.teamToken ?? "", hostToken !== null) });
@@ -697,6 +762,27 @@ var HOST_ACTIONS = /* @__PURE__ */ new Set([
   "start_minority_game",
   "reveal_minority",
   "next_minority",
+  "minority_summary",
+  "start_roulette",
+  "start_roulette_game",
+  "finish_no_chips",
+  "spin",
+  "next",
+  "pause",
+  "resume",
+  "extend",
+  "adjust_chips"
+]);
+var PROGRESS_ACTIONS = /* @__PURE__ */ new Set([
+  "start_face",
+  "start_face_game",
+  "face_close",
+  "start_minority",
+  "start_minority_practice",
+  "start_minority_game",
+  "reveal_minority",
+  "next_minority",
+  "minority_summary",
   "start_roulette",
   "start_roulette_game",
   "finish_no_chips",
@@ -740,9 +826,11 @@ async function POST(input) {
     const code = body.room ? codeOf(body.room) : store.activeRoom;
     if (!code) fail2("\uC9C4\uD589 \uC911\uC778 \uAC8C\uC784\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601\uC790\uB97C \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.", 404);
     const hostToken = HOST_ACTIONS.has(action) || (action === "skip_bet" || action === "undo_skip") && !body.teamToken ? await hostTokenForPassword() : "";
+    const unpause = PROGRESS_ACTIONS.has(action);
     const asHost = (fn) => {
       const room = mutate(code, (game) => {
         requireHost(body.hostToken, hostToken);
+        if (unpause) game.paused = null;
         fn(game);
       });
       return json({ state: publicState(room, "", true) });
@@ -795,6 +883,8 @@ async function POST(input) {
             tableCount,
             rouletteSpins: int("rouletteSpins", 1, 20, "\uB8F0\uB81B \uD69F\uC218", s.rouletteSpins),
             minorityBonus: int("minorityBonus", 0, 1e5, "\uC18C\uC218 \uC120\uD0DD \uBCF4\uB108\uC2A4", s.minorityBonus),
+            minoritySeconds: int("minoritySeconds", 10, 120, "\uC18C\uC218\uC758 \uC120\uD0DD \uC2DC\uAC04", s.minoritySeconds),
+            rouletteBetSeconds: int("rouletteBetSeconds", 15, 300, "\uB8F0\uB81B \uBCA0\uD305 \uC2DC\uAC04", s.rouletteBetSeconds),
             minorityQuestions: questions,
             minorityRounds,
             minorityPracticeQuestion: data.minorityPracticeQuestion === void 0 ? s.minorityPracticeQuestion : validateQuestion(data.minorityPracticeQuestion),
@@ -883,13 +973,14 @@ async function POST(input) {
           }
           game.minorityResult = null;
           game.minorityResultAt = null;
-          game.minorityDeadline = Date.now() + MINORITY_SECONDS * 1e3;
+          game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1e3;
           game.phase = "minority_play";
         });
       case "minority_choose":
         return asTeam((game, team) => {
           const choice = body.choice;
           if (game.phase !== "minority_play") fail2("\uC9C0\uAE08\uC740 \uC120\uD0DD\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          if (game.paused) fail2("\uC9C4\uD589\uC790\uAC00 \uC7A0\uC2DC \uBA48\uCDC4\uC5B4\uC694. \uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.");
           if (body.minorityRound !== (game.minorityRound ?? 1)) fail2("\uBB38\uC81C\uAC00 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC744 \uD655\uC778\uD558\uACE0 \uB2E4\uC2DC \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.", 409);
           if (typeof game.minorityDeadline !== "number" || Date.now() >= game.minorityDeadline) fail2("\uC120\uD0DD \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.", 409);
           const question = currentQuestion(game);
@@ -900,26 +991,18 @@ async function POST(input) {
         return asHost((game) => {
           if (game.phase !== "minority_play") fail2("\uACB0\uACFC\uB97C \uBC1C\uD45C\uD560 \uBB38\uC81C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
           if (body.minorityRound !== (game.minorityRound ?? 1)) fail2("\uBB38\uC81C\uAC00 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.", 409);
-          const question = currentQuestion(game);
-          if (!question) fail2("\uBB38\uC81C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
-          const result = countMinorityChoices(question.options.length, game.teams.map((team) => team.minorityChoice));
-          for (const team of game.teams) {
-            const won = typeof team.minorityChoice === "number" && result.winningChoices.includes(team.minorityChoice);
-            team.minorityChange = won ? game.settings.minorityBonus : 0;
-            if (!game.minorityPractice) team.chips += team.minorityChange;
-          }
-          game.minorityResult = result;
-          game.minorityResultAt = Date.now();
-          game.minorityDeadline = null;
-          if (!game.minorityPractice) {
-            (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map((team) => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
-          }
-          game.phase = "minority_result";
+          revealMinority(game);
+        });
+      case "minority_summary":
+        return asHost((game) => {
+          const done = game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds;
+          if (!done) fail2("\uC18C\uC218\uC758 \uC120\uD0DD\uC744 \uBAA8\uB450 \uB9C8\uCE5C \uB4A4 \uC911\uAC04 \uC21C\uC704\uB97C \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+          game.phase = "minority_summary";
         });
       // ---------------------------------------------------------- 룰렛
       case "start_roulette":
         return asHost((game) => {
-          const minorityDone = game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds;
+          const minorityDone = game.phase === "minority_summary" || game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds;
           if (!minorityDone) fail2("\uC18C\uC218\uC758 \uC120\uD0DD\uC744 \uBAA8\uB450 \uB9C8\uCE5C \uB4A4 \uB8F0\uB81B\uC744 \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
           game.phase = "roulette_tutorial";
         });
@@ -928,6 +1011,7 @@ async function POST(input) {
           if (game.phase !== "roulette_tutorial") fail2("\uB8F0\uB81B \uC548\uB0B4 \uD654\uBA74\uC5D0\uC11C \uAC8C\uC784\uC744 \uC2DC\uC791\uD574 \uC8FC\uC138\uC694.");
           game.round = 1;
           game.phase = "roulette_betting";
+          game.rouletteDeadline = Date.now() + game.settings.rouletteBetSeconds * 1e3;
         });
       case "finish_no_chips":
         return asHost((game) => {
@@ -939,7 +1023,7 @@ async function POST(input) {
         const { amount, color } = body;
         if (color !== "red" && color !== "black" || !Number.isSafeInteger(amount) || amount < 1) fail2("\uC0C9\uACFC \uBCA0\uD305\uD560 \uCE69\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.");
         return asTeam((game, team) => {
-          if (game.phase !== "roulette_betting") fail2("\uC774\uBC88 \uBCA0\uD305\uC740 \uB9C8\uAC10\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+          if (game.phase !== "roulette_betting" || !game.rouletteDeadline && !game.paused) fail2("\uC774\uBC88 \uBCA0\uD305\uC740 \uB9C8\uAC10\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
           if (team.skipped) fail2("\uBCA0\uD305 \uAC74\uB108\uB6F0\uAE30\uB97C \uCDE8\uC18C\uD55C \uB4A4 \uB2E4\uC2DC \uBCA0\uD305\uD574 \uC8FC\uC138\uC694.");
           if (amount > team.chips) fail2("\uBCF4\uC720 \uCE69\uBCF4\uB2E4 \uB9CE\uC774 \uBCA0\uD305\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
           team.bet = { color, amount };
@@ -957,6 +1041,7 @@ async function POST(input) {
             team.skipped = true;
           } else {
             if (!team.skipped) fail2("\uAC74\uB108\uB6F4 \uD14C\uC774\uBE14\uC774 \uC544\uB2D9\uB2C8\uB2E4.");
+            if (!byHost && !game.rouletteDeadline && !game.paused) fail2("\uBCA0\uD305 \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.");
             team.skipped = false;
           }
         };
@@ -977,6 +1062,7 @@ async function POST(input) {
             settled.push({ id: team.id, name: team.name, table: team.table, color: team.bet.color, amount: team.bet.amount, change, chips: team.chips });
           }
           game.history.push({ round: game.round, result: color, teams: settled });
+          game.rouletteDeadline = null;
           game.result = color;
           game.rouletteSpinStartedAt = Date.now();
           game.phase = "roulette_result";
@@ -992,12 +1078,52 @@ async function POST(input) {
           }
           game.round += 1;
           game.phase = "roulette_betting";
+          game.rouletteDeadline = Date.now() + game.settings.rouletteBetSeconds * 1e3;
           game.result = null;
           game.rouletteSpinStartedAt = null;
           for (const team of game.teams) {
             team.bet = null;
             team.skipped = false;
           }
+        });
+      // ---------------------------------------------------------- 운영 도구
+      case "pause":
+        return asHost((game) => {
+          const timer = activeTimer(game);
+          const deadline = timer?.get();
+          if (!timer || typeof deadline !== "number") fail2("\uC9C0\uAE08\uC740 \uBA48\uCD9C \uD0C0\uC774\uBA38\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          if (game.paused) return;
+          game.paused = { remaining: Math.max(0, deadline - Date.now()) };
+          timer.set(null);
+        });
+      case "resume":
+        return asHost((game) => {
+          if (!game.paused) return;
+          activeTimer(game)?.set(Date.now() + game.paused.remaining);
+          game.paused = null;
+        });
+      case "extend":
+        return asHost((game) => {
+          const timer = activeTimer(game);
+          if (!timer) fail2("\uC9C0\uAE08\uC740 \uB298\uB9B4 \uD0C0\uC774\uBA38\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          if (game.paused) {
+            game.paused.remaining += 15e3;
+            return;
+          }
+          timer.set(Math.max(timer.get() ?? 0, Date.now()) + 15e3);
+        });
+      case "adjust_chips":
+        return asHost((game) => {
+          const team = game.teams.find((t) => t.id === body.teamId);
+          const delta = body.delta;
+          if (!team) fail2("\uD14C\uC774\uBE14\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > 1e5) fail2("\uC870\uC815\uD560 \uCE69\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.");
+          if (game.phase === "roulette_result" || game.phase === "roulette_betting" && team.bet) fail2("\uB8F0\uB81B \uACB0\uACFC\uAC00 \uC815\uC0B0\uB418\uB294 \uC911\uC5D0\uB294 \uC870\uC815\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          const next = team.chips + delta;
+          if (next < 0) fail2("\uCE69\uC774 0\uBCF4\uB2E4 \uC791\uC544\uC9C8 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+          team.chips = next;
+          team.adjustTotal = (team.adjustTotal ?? 0) + delta;
+          (game.adjustments ??= []).push({ table: team.table, delta, reason: str(body.reason).trim().slice(0, 100), at: Date.now() });
         });
       default:
         return fail2("\uC54C \uC218 \uC5C6\uB294 \uC694\uCCAD\uC785\uB2C8\uB2E4.");

@@ -19,12 +19,13 @@ type Props = {
   onTableExclusion: (table: number, exclude: boolean) => void;
   onSettings: (settings: object) => void;
   onFacePeople: (people: { id?: string; name: string; aliases: string[]; photo: string | null }[]) => void;
+  onAdjust: (team: Team, delta: number, reason: string) => void;
   onRefresh: () => void; onCopy: () => void; onNewGame: () => void; onLeave: () => void;
 };
 
 const PHASE_LABEL: Record<string, string> = {
   lobby: "참여 대기", face_tutorial: "얼굴 카드 안내", face_play: "얼굴 카드 진행 중", face_result: "얼굴 카드 결과",
-  minority_tutorial: "소수의 선택 안내", minority_play: "선택 진행 중", minority_result: "선택 결과",
+  minority_tutorial: "소수의 선택 안내", minority_play: "선택 진행 중", minority_result: "선택 결과", minority_summary: "중간 순위 발표",
   roulette_tutorial: "룰렛 안내", roulette_betting: "룰렛 베팅", roulette_result: "룰렛 결과", finished: "게임 종료",
 };
 const FACE_STAGE: Record<string, string> = { select: "카드 고르는 중", mismatch: "다른 사람 · 다음 차례 준비", name: "이름 맞히는 중", name_result: "이름 정답 공개", done: "종료" };
@@ -33,7 +34,7 @@ const readyPeople = (settings: Settings) => (settings.facePeople || []).filter(p
 const tables = (teams: Team[]) => teams.map(t => `${t.table}번`).join(", ");
 
 /** 지금 단계에서 눌러야 할 버튼 */
-function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction }: Pick<Props, "game" | "busy" | "resultHidden" | "hostCooldown" | "onAction">) {
+function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGame }: Pick<Props, "game" | "busy" | "resultHidden" | "hostCooldown" | "onAction" | "onNewGame">) {
   const R = roundsOf(game);
   const go = (action: HostAction, label: string, disabled = false) => <button className="primary" disabled={busy || disabled} onClick={() => onAction(action)}>{label} →</button>;
   const noTeams = !game.teams.length;
@@ -67,21 +68,24 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction }: Pick<
     case "minority_play": {
       const waiting = game.teams.filter(t => !t.minoritySubmitted);
       return <>
-        <p>{waiting.length ? `아직 선택하지 않은 테이블: ${tables(waiting)}` : "모든 테이블이 선택했습니다."} 결과를 발표하면 미선택 테이블은 점수 변동 없이 넘어갑니다.</p>
+        <p>{waiting.length ? `아직 선택하지 않은 테이블: ${tables(waiting)}` : "모든 테이블이 선택했습니다."} 시간이 끝나면 자동으로 결과가 발표됩니다. 미선택 테이블은 점수 변동 없이 넘어갑니다.</p>
         <button className="primary" disabled={busy || noTeams} onClick={() => { if (!waiting.length || window.confirm(`아직 선택하지 않은 ${waiting.length}개 테이블은 점수 변동 없이 넘어갑니다. 결과를 발표할까요?`)) onAction("reveal_minority"); }}>선택 마감하고 결과 발표 →</button>
       </>;
     }
     case "minority_result":
       if (game.minorityPractice) return <><p>연습이 끝났습니다. 실제 칩은 변하지 않았습니다.</p>{go("start_minority_game", "본게임 시작")}</>;
       if (game.minorityRound < game.settings.minorityRounds) return <><p>결과를 확인한 뒤 다음 질문을 시작하세요.</p>{go("next_minority", "다음 질문 시작")}</>;
-      return <><p>{R.minority}라운드를 마쳤습니다. 모은 칩으로 룰렛을 진행합니다.</p>{go("start_roulette", `${R.roulette}라운드 룰렛 안내`)}</>;
+      return <><p>{R.minority}라운드를 마쳤습니다. 빔에 중간 순위를 보여 준 뒤 룰렛을 진행하세요.</p>{go("minority_summary", "중간 순위 발표")}
+        <button className="host-btn ghost" disabled={busy} onClick={() => onAction("start_roulette")}>순위 없이 룰렛 안내로</button></>;
+    case "minority_summary":
+      return <><p>빔에 지금까지의 순위와 라운드별 획득 칩이 나오고 있습니다.</p>{go("start_roulette", `${R.roulette}라운드 룰렛 안내`)}</>;
     case "roulette_tutorial":
     case "roulette_betting": {
       if (game.teams.length > 0 && game.teams.every(t => t.chips === 0)) return <><p>모든 테이블의 칩이 0이어서 룰렛을 진행할 수 없습니다.</p>{go("finish_no_chips", "최종 결과 보기")}</>;
       if (game.phase === "roulette_tutorial") return <><p>게임 방법을 설명한 뒤 베팅을 시작하세요.</p>{go("start_roulette_game", "룰렛 베팅 시작")}</>;
       const pending = game.teams.filter(t => t.chips > 0 && !t.bet && !t.skipped);
       return <>
-        <p>{pending.length ? `아직 선택하지 않은 테이블: ${tables(pending)} (오래 걸리면 아래 테이블 현황에서 "베팅 건너뛰기")` : "모든 테이블의 베팅 또는 건너뛰기 선택이 끝났습니다."}</p>
+        <p>{pending.length ? `아직 베팅하지 않은 테이블: ${tables(pending)}. 베팅 시간이 끝나면 자동으로 이번 판을 건너뜁니다.` : "모든 테이블의 베팅 또는 건너뛰기가 끝났습니다. 룰렛을 돌리세요!"}</p>
         {go("spin", "룰렛 돌리기", !!pending.length || noTeams)}
       </>;
     }
@@ -90,8 +94,51 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction }: Pick<
       return <><p>{resultHidden ? "룰렛이 돌아가고 있습니다." : `이번 결과: ${game.result ? colorLabel(game.result) : ""}`}</p>{go("next", hostCooldown ? "결과 공개 중..." : last ? "최종 결과 보기" : "다음 룰렛 시작", resultHidden || hostCooldown)}</>;
     }
     default:
-      return <p>모든 게임이 끝났습니다. 점수 메뉴에서 최종 결과를 확인할 수 있습니다.</p>;
+      return <><p>모든 게임이 끝났습니다. 빔에 최종 순위가 나오고 있습니다. 다시 하려면 새 게임을 만드세요(모든 테이블 재입장).</p>
+        <button className="host-btn ghost" disabled={busy} onClick={onNewGame}>새 게임 만들기</button></>;
   }
+}
+
+/** 타이머가 돌아가는 단계에서: 일시정지 / 재개 / +15초 */
+function TimerControls({ game, busy, seconds, onAction }: { game: Game; busy: boolean; seconds: number | null; onAction: (a: HostAction) => void }) {
+  const running = (game.phase === "face_play" && game.face?.stage !== "done") || game.phase === "minority_play" || game.phase === "roulette_betting";
+  if (!running) return null;
+  return <div className="host-timer">
+    <span>{game.paused ? "⏸ 일시정지됨" : seconds !== null ? <>남은 시간 <b>{seconds}</b>초</> : game.phase === "roulette_betting" ? "베팅 마감됨" : ""}</span>
+    {game.paused
+      ? <button className="host-btn ghost" disabled={busy} onClick={() => onAction("resume")}>▶ 재개</button>
+      : <button className="host-btn ghost" disabled={busy || seconds === null} onClick={() => onAction("pause")}>⏸ 일시정지</button>}
+    <button className="host-btn ghost" disabled={busy} onClick={() => onAction("extend")}>{game.phase === "roulette_betting" && seconds === null && !game.paused ? "베팅 15초 다시 열기" : "+15초"}</button>
+  </div>;
+}
+
+/** 점수 탭: 테이블 칩 직접 조정 (항의·오류 대응) */
+function AdjustChips({ game, busy, onAdjust }: Pick<Props, "game" | "busy" | "onAdjust">) {
+  const [teamId, setTeamId] = useState("");
+  const [delta, setDelta] = useState("");
+  const [reason, setReason] = useState("");
+  const team = game.teams.find(t => t.id === teamId);
+  const value = Number(delta);
+  const submit = () => {
+    if (!team || !Number.isInteger(value) || value === 0) return;
+    if (!window.confirm(`${team.table}번 테이블 칩을 ${value > 0 ? "+" : ""}${value} 조정할까요?`)) return;
+    onAdjust(team, value, reason);
+    setDelta(""); setReason("");
+  };
+  return <section className="host-panel host-adjust">
+    <h2>칩 직접 조정</h2>
+    <p className="host-subtle">채점 오류나 항의가 있을 때만 사용하세요. 빼려면 앞에 −를 붙입니다 (예: -50). 기록이 남습니다.</p>
+    <div className="host-adjust-form">
+      <select value={teamId} onChange={e => setTeamId(e.target.value)} aria-label="테이블">
+        <option value="">테이블 선택</option>
+        {[...game.teams].sort((a, b) => a.table - b.table).map(t => <option key={t.id} value={t.id}>{t.table}번 테이블 ({fmt(t.chips)}칩)</option>)}
+      </select>
+      <input type="number" inputMode="numeric" placeholder="+50 / -50" value={delta} onChange={e => setDelta(e.target.value)} aria-label="조정할 칩" />
+      <input type="text" placeholder="사유 (선택)" maxLength={100} value={reason} onChange={e => setReason(e.target.value)} aria-label="사유" />
+      <button className="primary" disabled={busy || !team || !Number.isInteger(value) || value === 0} onClick={submit}>조정 →</button>
+    </div>
+    {game.adjustments.length > 0 && <ul className="host-adjust-log">{[...game.adjustments].reverse().map((a, i) => <li key={i}><b>{a.table}번</b> {a.delta > 0 ? "+" : ""}{fmt(a.delta)}칩{a.reason ? ` · ${a.reason}` : ""}</li>)}</ul>}
+  </section>;
 }
 
 function teamStatus(game: Game, team?: Team) {
@@ -134,6 +181,8 @@ const NUMBER_FIELDS = [
   ["faceSelectSeconds", "얼굴 카드 · 카드 선택 시간", "10–120초", 10, 120],
   ["faceNameSeconds", "얼굴 카드 · 이름 입력 시간", "10–120초", 10, 120],
   ["minorityBonus", "소수 선택 보너스", "0–100,000칩", 0, 100000],
+  ["minoritySeconds", "소수의 선택 · 선택 시간", "10–120초", 10, 120],
+  ["rouletteBetSeconds", "룰렛 · 베팅 시간", "15–300초", 15, 300],
   ["rouletteSpins", "룰렛 횟수", "1–20회", 1, 20],
 ] as const;
 type NumberKey = typeof NUMBER_FIELDS[number][0];
@@ -190,12 +239,15 @@ function SettingsPanel({ game, busy, onSettings }: Pick<Props, "game" | "busy" |
 }
 
 export default function HostConsole(props: Props) {
-  const { game, busy, resultHidden, hostCooldown, error, notice, participantUrl, hostToken, onAction, onTeamAction, onTableExclusion, onFacePeople, onRefresh, onCopy, onNewGame, onLeave } = props;
+  const { game, busy, resultHidden, hostCooldown, error, notice, participantUrl, hostToken, onAction, onTeamAction, onTableExclusion, onFacePeople, onAdjust, onRefresh, onCopy, onNewGame, onLeave } = props;
   const R = roundsOf(game);
   const settings = game.settings;
   const [tab, setTab] = useState<"play" | "scores" | "settings">("play");
   const minoritySeconds = useCountdown(game.phase === "minority_play" ? game.minorityDeadline : null, game.serverTime);
-  const faceSeconds = useCountdown(game.phase === "face_play" ? game.face?.deadline : null, game.serverTime);
+  const pausedSeconds = game.paused ? Math.ceil(game.paused.remaining / 1000) : null;
+  const faceSeconds = useCountdown(game.phase === "face_play" ? game.face?.deadline : null, game.serverTime) ?? pausedSeconds;
+  const betSeconds = useCountdown(game.phase === "roulette_betting" ? game.rouletteDeadline : null, game.serverTime);
+  const timerSeconds = game.paused ? pausedSeconds : game.phase === "face_play" ? faceSeconds : game.phase === "minority_play" ? minoritySeconds : betSeconds;
   const excluded = game.excludedTables;
   const eligible = settings.tableCount - excluded.length;
   const sorted = [...game.teams].sort((a, b) => b.chips - a.chips || a.table - b.table);
@@ -237,8 +289,12 @@ export default function HostConsole(props: Props) {
                 <b>{game.minorityResult.winningChoices.length ? `소수 선택: ${game.minorityResult.winningChoices.map(i => question.options[i]).join(", ")}` : "소수 선택 없음 · 점수 변동 없음"}</b>
               </>}
             </div>}
-            <div className="host-next"><PhaseAction game={game} busy={busy} resultHidden={resultHidden} hostCooldown={hostCooldown} onAction={onAction} /></div>
+            <TimerControls game={game} busy={busy} seconds={timerSeconds} onAction={onAction} />
+            <div className="host-next"><PhaseAction game={game} busy={busy} resultHidden={resultHidden} hostCooldown={hostCooldown} onAction={onAction} onNewGame={onNewGame} /></div>
           </section>
+          {(game.phase === "finished" || game.phase === "minority_summary") && <section className="host-panel"><h2>{game.phase === "finished" ? "최종 순위" : "중간 순위"}</h2>
+            <div className="host-score-list">{sorted.map(t => <div className="host-score-row" key={t.id}><span className="host-score-rank">{sorted.findIndex(o => o.chips === t.chips) + 1}위</span><strong>{t.table}번 테이블</strong><b>{fmt(t.chips)}칩</b></div>)}</div>
+          </section>}
           {(game.phase === "face_play" || game.phase === "face_result") && <section className="host-panel host-face-live"><FaceScreen game={game} view="host" busy={busy} seconds={faceSeconds} /></section>}
           {game.phase === "minority_result" && <section className="host-panel host-simple-results">
             <h2>{game.minorityPractice ? "연습 결과 · 실제 칩에 미반영" : "이번 질문 결과"}</h2>
@@ -274,6 +330,7 @@ export default function HostConsole(props: Props) {
               ? <div className="host-score-list">{sorted.map(t => <div className="host-score-row" key={t.id}><span className="host-score-rank">{sorted.findIndex(o => o.chips === t.chips) + 1}위</span><strong>{t.table}번 테이블</strong><b>{fmt(t.chips)}칩</b></div>)}</div>
               : <p className="empty">입장한 테이블이 없습니다.</p>}
           </section>
+          <AdjustChips game={game} busy={busy} onAdjust={onAdjust} />
           <section className="host-panel host-history"><h2>룰렛 결과</h2>
             {resultHidden ? <p className="empty">결과 공개 중</p> : game.history.length
               ? [...game.history].reverse().map(h => <div className="host-history-row" key={h.round}><strong>{h.round}회차</strong><span className={h.result === "red" ? "host-red" : ""}>● {colorLabel(h.result)}</span><small>{h.teams.length}개 테이블 베팅</small></div>)
