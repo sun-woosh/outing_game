@@ -221,11 +221,11 @@ export function facePublic(room: FaceRoom, myTeamId: string | null, isHost: bool
     pairs: f.board.length / 2,
     found: f.removed.length,
     stopAfterTurn: f.stopAfterTurn,
-    // 카드: 뒤집힌 카드와 이미 찾은 카드만 사진 공개. 이름은 정답 공개 후에만
+    // 카드: 뒤집힌 카드와 이미 찾은 카드만 사진 공개. 카드판에는 이름을 싣지 않음 (운영자만 확인용)
     board: f.board.map((id, index) => {
       const removed = f.removed.includes(id);
       const open = f.selected.includes(index);
-      return { index, open, removed, photo: open || removed ? photoOf(id) : null, name: removed ? nameOf(id) : null };
+      return { index, open, removed, photo: open || removed ? photoOf(id) : null, name: isHost && removed ? nameOf(id) : null };
     }),
     submitted: Object.keys(f.answers),
     myAnswer: myTeamId ? f.answers[myTeamId] ?? null : null,
@@ -233,7 +233,8 @@ export function facePublic(room: FaceRoom, myTeamId: string | null, isHost: bool
     hostAnswer: isHost && f.stage === "name" ? nameOf(f.board[f.selected[0]]) : null,
     hostAnswers: isHost ? f.answers : null,
     result: f.result ? { ...f.result, answers: isHost ? f.result.answers : (myTeamId && f.result.answers[myTeamId] !== undefined ? { [myTeamId]: f.result.answers[myTeamId] } : {}) } : null,
-    history: f.history,
+    // 찾은 사람 목록(이름 포함)은 라운드가 끝난 뒤에만 공개
+    history: isHost || f.stage === "done" ? f.history.map(h => ({ ...h, photo: photoOf(h.personId) })) : [],
   };
 }
 

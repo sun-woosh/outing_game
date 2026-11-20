@@ -86,6 +86,11 @@ test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
     if (f.stage !== "select") { await H("face_close", { turnId: f.turnId }); continue; }
     // 닫힌 카드는 사진이 공개되지 않음
     assert.ok(f.board.filter(c => !c.open && !c.removed).every(c => c.photo === null));
+    // 참가자·빔 화면에는 카드판에 이름이 실리지 않고, 찾은 사람 목록도 라운드가 끝나기 전엔 비어 있음
+    for (const view of [await get({ "x-team-token": t[2] }), await get()]) {
+      assert.ok(view.state.face.board.every(c => c.name === null));
+      assert.deepStrictEqual(view.state.face.history, []);
+    }
     const left = f.board.filter(c => !c.removed).map(c => c.index);
     const known = {};
     for (const i of left) if (seen[i]) (known[seen[i]] ||= []).push(i);

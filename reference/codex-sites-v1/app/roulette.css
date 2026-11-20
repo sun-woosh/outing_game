@@ -1,0 +1,49 @@
+/* An illuminated wooden bowl and brass pockets, with just the two playable colors. */
+.wheel-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #3a1916 0 62%, #9d6c3e 64%, #f4d393 66%, #623b26 68%, #2a1715 73%, #ad7949 76%, #2a1513 79%, #10090b 82%);
+  box-shadow: 0 18px 30px #070202aa, inset 0 2px 4px #f6d5a366;
+}
+.wheel {
+  width: 82%;
+  border: clamp(4px, .65vw, 8px) solid #c49a60;
+  background: repeating-conic-gradient(#e4bf7d 0deg .7deg, #a52231 .7deg 22.1deg, #e4bf7d 22.1deg 22.9deg, #19171a 22.9deg 44.6deg, #e4bf7d 44.6deg 45deg);
+  box-shadow: 0 0 0 2px #4b291c, 0 0 0 5px #edcc8f, 0 0 0 9px #593323, 0 4px 10px #0009, inset 0 0 0 2px #3d211b;
+}
+.wheel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 0 67%, #160c0b55 68%, transparent 74%, #ffe4af25 78%, #1b0e0c88 100%);
+  pointer-events: none;
+}
+.wheel::after {
+  inset: 17%;
+  border: 2px solid #e7c07a;
+  box-shadow: 0 0 0 3px #3a211a, 0 0 0 5px #ab814d, inset 0 0 0 3px #341b17;
+}
+.wheel-pockets { position: absolute; inset: 0; border-radius: 50%; }
+.wheel-pockets span { position: absolute; inset: 0; }
+.wheel-pockets i { position: absolute; left: 50%; top: 8%; width: 2.6%; aspect-ratio: 1; border-radius: 50%; transform: translateX(-50%); background: #f5dbab; box-shadow: 0 1px 2px #000b; }
+.wheel-inside {
+  width: 57%;
+  height: 57%;
+  border-color: #d9b273;
+  background: radial-gradient(circle at 38% 25%, #8b4938, #51231f 46%, #271314 80%);
+  box-shadow: inset 0 0 0 4px #42231d, inset 0 0 20px #090404aa, 0 3px 8px #0009;
+}
+.wheel-pointer { top: -1%; border-top-color: #f4d292; filter: drop-shadow(0 2px 2px #000); }
+.wheel-pointer::after { content: ""; position: absolute; width: 10px; height: 10px; left: -5px; top: -6px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, white, #e4ddc8 48%, #8b7e69 100%); box-shadow: 0 1px 4px #000b; }
+.table-body .wheel-wrap { width: min(350px, 60%); }
+.projector .table-body .wheel-wrap { width: min(480px, 68%); }
+.preview-roulette .preview-wheel { width: min(260px, 56%); }
+@media (max-width: 600px) {
+  .participant .table-body { flex-direction: column; text-align: center; gap: 8px; }
+  .participant .table-body .wheel-wrap { width: min(260px, 82%); }
+  .projector .table-body .wheel-wrap { width: min(400px, 65%); }
+  .wheel-pointer::after { width: 8px; height: 8px; left: -4px; }
+}

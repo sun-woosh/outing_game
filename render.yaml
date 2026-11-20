@@ -1,16 +1,16 @@
-# Render Blueprint: Render 대시보드 → New → Blueprint → 이 저장소 선택
+# Render 배포 설정 (Render 대시보드 → New → Blueprint 로 처음 한 번 만들 때 사용)
+# dist/ 에 빌드 결과가 들어 있어 Render에서 따로 빌드하지 않습니다.
 services:
   - type: web
     name: macau-roulette
-    # dist/ 에 빌드 결과가 커밋되어 있어 별도 빌드가 필요 없습니다
     runtime: node
-    plan: free            # 행사 당일엔 starter 권장 (free는 15분 미사용 시 잠듦)
+    plan: free              # 행사 기간엔 유료(0.5c-512mb)로 올리면 잠들지 않음
     buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /healthz
-    autoDeploy: false
+    autoDeploy: false       # 행사 중 실수로 재배포되지 않도록 수동 배포
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: HOST_PIN
-        sync: false       # 배포 시 운영자 PIN을 직접 입력
+      - key: HOST_PIN       # 운영자 비밀번호 (Render → Environment 에서 입력)
+        sync: false

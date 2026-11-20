@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./face-screen.css";
+import type { Game } from "../types";
 
 export type FaceCard = { index: number; open: boolean; removed: boolean; photo: string | null; name: string | null };
 export type FaceView = {
@@ -8,14 +9,9 @@ export type FaceView = {
   pairs: number; found: number; stopAfterTurn: boolean; board: FaceCard[]; submitted: string[]; myAnswer: string | null;
   hostAnswer?: string | null; hostAnswers?: Record<string, string> | null;
   result: { personId: string; name: string; attackerId: string; winners: string[]; answers: Record<string, string> } | null;
-  history: { personId: string; name: string; attackerId: string; winners: string[] }[];
+  history: { personId: string; name: string; attackerId: string; winners: string[]; photo: string | null }[];
 };
-type Team = { id: string; table: number; chips: number; faceChange?: number };
-export type FaceGame = {
-  phase: string; face?: FaceView | null; teams: Team[]; myTeamId?: string | null; serverTime?: number;
-  settings: { faceMatchBonus?: number; faceNameBonus?: number; faceSelectSeconds?: number; faceNameSeconds?: number; facePeopleCount?: number; facePeople?: unknown[] };
-  rounds?: { face: number | null; minority: number; roulette: number };
-};
+type FaceGame = Pick<Game, "phase" | "face" | "teams" | "myTeamId" | "settings" | "rounds">;
 type Props = { game: FaceGame; view: "team" | "beam" | "host"; busy: boolean; seconds: number | null; onPick?: (index: number) => void; onAnswer?: (answer: string) => void };
 
 const photoUrl = (id: string | null) => (id ? `/photos/${id}` : "");
@@ -46,11 +42,11 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
       <h2>얼굴 카드 매치</h2>
       <p>같은 사람 사진 두 장을 찾고, 그 사람의 이름을 맞혀 주세요.</p>
       <div className="face-steps">
-        <div><strong>01</strong><span>테이블 번호 순서대로<br />카드 두 장을 뒤집어요.</span></div>
-        <div><strong>02</strong><span>같은 사람이면<br />뒤집은 테이블 <b>+{match}칩</b></span></div>
-        <div><strong>03</strong><span>모든 테이블이 이름 맞히기<br />정답이면 <b>+{nameBonus}칩</b></span></div>
+        <div><strong>01</strong><span>테이블 번호 순서대로 <br />카드 두 장을 뒤집어요.</span></div>
+        <div><strong>02</strong><span>같은 사람이면 <br />뒤집은 테이블 <b>+{match}칩</b></span></div>
+        <div><strong>03</strong><span>모든 테이블이 이름 맞히기 <br />정답이면 <b>+{nameBonus}칩</b></span></div>
       </div>
-      <p className="face-note">카드 {people * 2}장 · {people}쌍 · 카드 선택 {s.faceSelectSeconds ?? 30}초, 이름 입력 {s.faceNameSeconds ?? 30}초<br />시간 안에 고르지 않으면 카드가 무작위로 뒤집힙니다. 다른 테이블 차례에도 카드 위치를 잘 기억해 두세요!</p>
+      <p className="face-note">카드 {people * 2}장 · {people}쌍 · 카드 선택 {s.faceSelectSeconds ?? 30}초, 이름 입력 {s.faceNameSeconds ?? 30}초 <br />시간 안에 고르지 않으면 카드가 무작위로 뒤집힙니다. 다른 테이블 차례에도 카드 위치를 잘 기억해 두세요!</p>
       <p className="face-muted">모든 짝을 찾으면 끝나고, 얻은 칩은 다음 라운드로 이어집니다.</p>
     </section>;
   }
@@ -65,7 +61,7 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
         <h2 className="face-title">얼굴 카드 매치 종료</h2>
         <p className="face-muted">{f.found} / {f.pairs}쌍을 찾았습니다.</p>
         {view === "team" && myTeam && <div className="face-mine"><strong>+{(myTeam.faceChange ?? 0).toLocaleString()}칩</strong><p>얼굴 카드에서 얻은 칩 · 보유 {myTeam.chips.toLocaleString()}칩</p></div>}
-        <div className="face-found-grid">{f.history.map(h => { const card = f.board.find(c => c.name === h.name && c.photo); return <figure key={h.personId}>{card?.photo && <img src={photoUrl(card.photo)} alt="" />}<figcaption>{h.name}</figcaption></figure>; })}</div>
+        <div className="face-found-grid">{f.history.map(h => <figure key={h.personId}>{h.photo && <img src={photoUrl(h.photo)} alt="" />}<figcaption>{h.name}</figcaption></figure>)}</div>
       </section>
       {view !== "team" && <section className="face-card face-ranking"><h2>테이블별 칩</h2>{ranking.map(t => <div key={t.id}><strong>{t.table}번 테이블</strong><span>+{(t.faceChange ?? 0).toLocaleString()}</span><b>{t.chips.toLocaleString()}칩</b></div>)}</section>}
     </div>;
@@ -81,7 +77,7 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
   return <div className={`face-layout face-${view} ${f.stage === "name" || f.stage === "name_result" ? "face-naming" : ""}`}>
     <section className="face-card face-board-card">
       <div className="face-top">
-        <span>ROUND {game.rounds?.face ?? 1} · 얼굴 카드 · {f.found} / {f.pairs}쌍</span>
+        <span>{view === "team" ? "" : `ROUND ${game.rounds?.face ?? 1} · 얼굴 카드 · `}{f.found} / {f.pairs}쌍 찾음</span>
         {seconds !== null && (f.stage === "select" || f.stage === "name") && <span className="face-clock">남은 시간 <strong>{seconds}</strong>초</span>}
       </div>
       <div className="face-turn">
@@ -95,10 +91,10 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
           const clickable = isMyTurn && f.stage === "select" && !card.open && !card.removed && !busy && seconds !== 0;
           return <button key={card.index} type="button" role="listitem" disabled={!clickable}
             className={`face-tile ${card.open ? "open" : ""} ${card.removed ? "removed" : ""} ${clickable ? "clickable" : ""} ${card.open && f.stage === "mismatch" ? "miss" : ""} ${card.open && (f.stage === "name" || f.stage === "name_result") ? "hit" : ""}`}
-            onClick={() => clickable && onPick?.(card.index)} aria-label={card.removed ? `${card.index + 1}번 카드 ${card.name ?? ""} 찾음` : card.open ? `${card.index + 1}번 카드 뒤집힘` : `${card.index + 1}번 카드`}>
+            onClick={() => clickable && onPick?.(card.index)} aria-label={card.removed ? `${card.index + 1}번 카드 찾음` : card.open ? `${card.index + 1}번 카드 뒤집힘` : `${card.index + 1}번 카드`}>
             <span className="face-inner">
               <span className="face-back"><i>✦</i><b>{card.index + 1}</b></span>
-              <span className="face-front">{card.photo && <img src={photoUrl(card.photo)} alt="" draggable={false} />}{card.removed && card.name && <em>{card.name}</em>}</span>
+              <span className="face-front">{card.photo && <img src={photoUrl(card.photo)} alt="" draggable={false} />}{view === "host" && card.removed && card.name && <em>{card.name}</em>}</span>
             </span>
           </button>;
         })}

@@ -20,7 +20,6 @@
 .participant .entry input::placeholder{font-size:16px;font-weight:400;color:#aa9080}
 .participant .primary{border-radius:10px;background:linear-gradient(135deg,#f3d699,#dbb56e);color:#271410;min-height:56px;font-size:16px;box-shadow:0 5px 15px #10030330}
 .participant .entry .primary{margin-top:18px}
-.participant .subtle-link{font-size:13px;color:#d1b9a7}
 .participant .how{gap:16px 28px;padding-top:20px;border-color:#b58a604f}
 .participant .how b{font-size:16px}.participant .how span,.participant .how p{font-size:13px;color:#d4beb0}
 .participant .game-shell{width:min(720px,calc(100% - 40px));padding:32px 0 32px}
@@ -29,23 +28,23 @@
 .participant .game-heading h1{font-size:clamp(28px,5vw,38px);margin:9px 0 5px;line-height:1.2}
 .participant .game-heading p{font-size:13px;color:#d4bcaa;letter-spacing:.04em}
 .participant .lobby-card{padding:36px}.participant .lobby-card h2{font-size:28px}.participant .lobby-card>p{font-size:16px;color:#dec6b5;line-height:1.7}
-.participant .minority-card,.host-sim-phone .minority-team .minority-card{border:1px solid #b58a6266;border-radius:18px;background:linear-gradient(155deg,#3b2021,#291617);box-shadow:0 16px 48px #08030338}
+.participant .minority-card{border:1px solid #b58a6266;border-radius:18px;background:linear-gradient(155deg,#3b2021,#291617);box-shadow:0 16px 48px #08030338}
 .participant .minority-team .minority-card{padding:clamp(22px,5vw,36px)}
-.participant .minority-top,.host-sim-phone .minority-team .minority-top{font-size:14px;font-weight:800;color:#edc981;gap:8px}
-.participant .minority-clock,.host-sim-phone .minority-clock{font-size:13px;white-space:nowrap;color:#ecdacb}
-.participant .minority-clock strong,.host-sim-phone .minority-clock strong{font-size:29px;font-variant-numeric:tabular-nums;color:#f3d391}
-.participant .minority-question,.host-sim-phone .minority-team .minority-question{font-size:clamp(22px,5.5vw,30px);line-height:1.4;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere;margin:22px 0 12px}
-.participant .minority-prompt,.host-sim-phone .minority-team .minority-prompt{font-size:15px;line-height:1.55;color:#e4cdbb;margin:0 0 18px}
-.participant .minority-team .minority-options,.host-sim-phone .minority-team .minority-options{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-.participant .minority-team .minority-options button,.host-sim-phone .minority-team .minority-options button{min-width:0;min-height:74px;display:flex;align-items:center;gap:14px;padding:13px 15px;border-radius:12px;border:1px solid #9c7768;background:#211215;color:#fff4e5;font-size:18px;line-height:1.4;box-shadow:0 4px 12px #0d030421;transition:background .15s,border-color .15s}
-.participant .minority-team .minority-options button span,.host-sim-phone .minority-team .minority-options button span{width:38px;height:38px;border-radius:10px;background:#4a2e29;border:0;color:#efcd8e;font-size:17px}
-.participant .minority-team .minority-options button strong,.host-sim-phone .minority-team .minority-options button strong{flex:1;min-width:0;text-align:left;word-break:keep-all;overflow-wrap:anywhere}
-.participant .minority-team .minority-options button.selected,.host-sim-phone .minority-team .minority-options button.selected{border:2px solid #f3d494;background:#5b3830;box-shadow:0 0 0 3px #eecb8326}
-.participant .minority-team .minority-options button.selected span,.host-sim-phone .minority-team .minority-options button.selected span{background:#eed092;color:#271411}
-.participant .minority-options button>b,.host-sim-phone .minority-options button>b{font-size:13px;white-space:nowrap}
-.participant .minority-balance,.host-sim-phone .minority-balance{border-top:1px solid #b58a6255;margin-top:20px;padding-top:18px;color:#dfc8b7;font-size:15px}
-.participant .minority-balance strong,.host-sim-phone .minority-balance strong{color:#f4d48d;font-size:25px}
-.participant .minority-confirm,.host-sim-phone .minority-confirm{border-radius:12px;background:#56392c;border-color:#bd9763}
+.participant .minority-top{font-size:14px;font-weight:800;color:#edc981;gap:8px}
+.participant .minority-clock{font-size:13px;white-space:nowrap;color:#ecdacb}
+.participant .minority-clock strong{font-size:29px;font-variant-numeric:tabular-nums;color:#f3d391}
+.participant .minority-question{font-size:clamp(22px,5.5vw,30px);line-height:1.4;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere;margin:22px 0 12px}
+.participant .minority-prompt{font-size:15px;line-height:1.55;color:#e4cdbb;margin:0 0 18px}
+.participant .minority-team .minority-options{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.participant .minority-team .minority-options button{min-width:0;min-height:74px;display:flex;align-items:center;gap:14px;padding:13px 15px;border-radius:12px;border:1px solid #9c7768;background:#211215;color:#fff4e5;font-size:18px;line-height:1.4;box-shadow:0 4px 12px #0d030421;transition:background .15s,border-color .15s}
+.participant .minority-team .minority-options button span{width:38px;height:38px;border-radius:10px;background:#4a2e29;border:0;color:#efcd8e;font-size:17px}
+.participant .minority-team .minority-options button strong{flex:1;min-width:0;text-align:left;word-break:keep-all;overflow-wrap:anywhere}
+.participant .minority-team .minority-options button.selected{border:2px solid #f3d494;background:#5b3830;box-shadow:0 0 0 3px #eecb8326}
+.participant .minority-team .minority-options button.selected span{background:#eed092;color:#271411}
+.participant .minority-options button>b{font-size:13px;white-space:nowrap}
+.participant .minority-balance{border-top:1px solid #b58a6255;margin-top:20px;padding-top:18px;color:#dfc8b7;font-size:15px}
+.participant .minority-balance strong{color:#f4d48d;font-size:25px}
+.participant .minority-confirm{border-radius:12px;background:#56392c;border-color:#bd9763}
 .participant .minority-guide{padding:clamp(24px,5vw,36px)}.participant .minority-guide h2{font-size:32px}.participant .minority-guide>p{font-size:16px;line-height:1.6}.participant .minority-steps{grid-template-columns:1fr;gap:8px;margin:22px 0}.participant .minority-steps>div{border:1px solid #966e5c;border-radius:12px;padding:14px;font-size:16px;align-items:center}.participant .minority-steps br{display:none}
 .participant .roulette-stage{grid-template-columns:1fr;gap:14px}.participant .roulette-stage>.table{grid-row:2}.participant .roulette-stage>.bet-panel{grid-row:1}.participant .roulette-stage>.table .table-body{padding:14px 0}.participant .roulette-stage>.table .table-body .wheel-wrap{width:min(220px,48%)}
 .participant .bet-panel{padding:28px}.participant .bet-panel h2{font-size:24px}.participant .chips-total strong{font-variant-numeric:tabular-nums}.participant .bet-panel .muted{font-size:15px;line-height:1.6}.participant .amount-input{border-radius:10px;background:#1d1012}.participant .color-button{border-radius:12px}.participant .quick-bets button,.participant .outline{border-radius:10px}.participant .skip-bet-button{font-size:15px;min-height:54px}.participant .bet-confirm{border-radius:10px}
