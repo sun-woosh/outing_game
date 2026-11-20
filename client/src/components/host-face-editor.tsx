@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export type FacePersonDraft = { id?: string; name: string; aliases: string; photo: string | null };
+type FacePersonDraft = { id?: string; name: string; aliases: string; photo: string | null };
 type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null };
 type Props = { people: FacePerson[]; hostToken: string; locked: boolean; busy: boolean; onSave: (people: { id?: string; name: string; aliases: string[]; photo: string | null }[]) => void; onImported: () => void };
 

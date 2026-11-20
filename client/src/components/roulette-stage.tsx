@@ -3,20 +3,23 @@ import Wheel from "./roulette-wheel";
 import { colorLabel, fmt, teamName, type Color, type Game } from "../types";
 
 type Props = {
-  game: Game; view: "team" | "beam"; busy: boolean; resultHidden: boolean; spinOffsetMs: number;
+  game: Game; view: "team" | "beam"; busy: boolean; resultHidden: boolean; spinOffsetMs: number; seconds: number | null;
   onBet: (color: Color, amount: number) => void; onSkip: () => void; onUndoSkip: () => void;
 };
 
 /** 룰렛 라운드: 휠 + (폰) 베팅 패널 / (빔) 테이블 순위 */
-export default function RouletteStage({ game, view, busy, resultHidden, spinOffsetMs, onBet, onSkip, onUndoSkip }: Props) {
+export default function RouletteStage({ game, view, busy, resultHidden, spinOffsetMs, seconds, onBet, onSkip, onUndoSkip }: Props) {
   const betting = game.phase === "roulette_betting";
-  // 빔: 베팅 중이거나 회전 중에는 휠만 크게
-  const focus = view === "beam" && (betting || (game.phase === "roulette_result" && resultHidden));
+  const betOpen = betting && (!!game.rouletteDeadline || !!game.paused);
+  // 빔: 회전 중에는 휠만 크게 (베팅 중에는 남은 시간과 테이블별 베팅 현황을 함께)
+  const focus = view === "beam" && game.phase === "roulette_result" && resultHidden;
   return <div className={`game-grid roulette-stage ${focus ? "roulette-focus" : ""}`}>
     <section className="table card">
       <div className="table-top">
         <span className="status"><i /> {resultHidden ? "룰렛 회전 중" : betting ? "베팅 진행 중" : game.phase === "roulette_result" ? "결과 발표" : "게임 종료"}</span>
-        <span className="round-tag">ROUND {game.rounds.roulette} · {game.round} / {game.settings.rouletteSpins}</span>
+        {betting && seconds !== null ? <span className={`bet-clock ${seconds <= 10 ? "urgent" : ""}`}>베팅 마감까지 <strong>{seconds}</strong>초</span>
+          : betting && !betOpen ? <span className="bet-clock">베팅 마감 · 곧 룰렛이 돌아갑니다</span>
+          : <span className="round-tag">ROUND {game.rounds.roulette} · {game.round} / {game.settings.rouletteSpins}</span>}
       </div>
       <div className="table-body">
         <Wheel result={game.result} spinning={resultHidden} spinOffsetMs={spinOffsetMs} />
@@ -26,12 +29,12 @@ export default function RouletteStage({ game, view, busy, resultHidden, spinOffs
         </div>}
       </div>
     </section>
-    {view === "team" ? <BetPanel game={game} busy={busy} resultHidden={resultHidden} onBet={onBet} onSkip={onSkip} onUndoSkip={onUndoSkip} />
+    {view === "team" ? <BetPanel game={game} busy={busy} resultHidden={resultHidden} betOpen={betOpen} seconds={seconds} onBet={onBet} onSkip={onSkip} onUndoSkip={onUndoSkip} />
       : !focus && <Leaderboard game={game} resultHidden={resultHidden} />}
   </div>;
 }
 
-function BetPanel({ game, busy, resultHidden, onBet, onSkip, onUndoSkip }: Pick<Props, "game" | "busy" | "resultHidden" | "onBet" | "onSkip" | "onUndoSkip">) {
+function BetPanel({ game, busy, resultHidden, betOpen, seconds, onBet, onSkip, onUndoSkip }: Pick<Props, "game" | "busy" | "resultHidden" | "seconds" | "onBet" | "onSkip" | "onUndoSkip"> & { betOpen: boolean }) {
   const [color, setColor] = useState<Color | null>(null);
   const [amount, setAmount] = useState("");
   const me = game.teams.find(t => t.id === game.myTeamId);
@@ -55,9 +58,12 @@ function BetPanel({ game, busy, resultHidden, onBet, onSkip, onUndoSkip }: Pick<
           <p>최종 순위는 빔 화면에서 확인해 주세요.</p>
         </div>
       : game.phase === "roulette_betting" && me?.skipped
-      ? <div className="waiting"><div className="waiting-icon">✦</div><h2>이번 베팅은 건너뜁니다</h2><p className="muted">칩은 그대로 유지됩니다. 룰렛이 돌기 전까지 선택을 바꿀 수 있어요.</p><button className="outline full" disabled={busy} onClick={onUndoSkip}>다시 베팅하기</button></div>
+      ? <div className="waiting"><div className="waiting-icon">✦</div><h2>이번 판은 건너뜁니다</h2><p className="muted">칩은 그대로 유지됩니다.{betOpen ? " 베팅 마감 전까지 바꿀 수 있어요." : ""}</p>{betOpen && <button className="outline full" disabled={busy} onClick={onUndoSkip}>다시 베팅하기</button>}</div>
+      : game.phase === "roulette_betting" && me && me.chips > 0 && !betOpen
+      ? <div className="waiting"><div className="waiting-icon">✦</div><h2>베팅 마감</h2><p className="muted">{me.bet?.color ? `${me.bet.color === "red" ? "빨강" : "검정"}에 ${fmt(me.bet.amount)}칩을 걸었어요. 곧 룰렛이 돌아갑니다!` : "곧 룰렛이 돌아갑니다!"}</p></div>
       : game.phase === "roulette_betting" && me && me.chips > 0
       ? <>
+          {seconds !== null && <p className={`bet-clock ${seconds <= 10 ? "urgent" : ""}`}>베팅 마감까지 <strong>{seconds}</strong>초</p>}
           <h2>어디에 걸까요?</h2>
           <p className="muted">색을 선택하고 베팅할 칩을 정해 주세요.</p>
           <div className="color-choice">

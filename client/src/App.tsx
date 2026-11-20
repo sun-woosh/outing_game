@@ -12,6 +12,7 @@ import FaceScreen from "./components/face-screen";
 import Landing from "./components/landing";
 import Lobby from "./components/lobby";
 import RouletteStage from "./components/roulette-stage";
+import Standings from "./components/standings";
 import { useCountdown } from "./lib/use-countdown";
 import { ROULETTE_RESULT_HOLD_MS, ROULETTE_SPIN_MS } from "./lib/roulette-timing";
 import { api, hello, socket, type ApiResult } from "./transport";
@@ -230,6 +231,7 @@ export default function App() {
     setNotice(`${table}번 테이블을 ${exclude ? "불참 처리" : "참여 가능으로 변경"}했습니다.`);
   });
   const saveSettings = (settings: object) => act(async () => { apply(await asHost("update_settings", { settings })); setNotice("설정을 저장했습니다."); });
+  const adjustChips = (team: Team, delta: number, reason: string) => act(async () => { apply(await asHost("adjust_chips", { teamId: team.id, delta, reason })); setNotice(`${team.table}번 테이블 칩을 조정했습니다.`); });
   const saveFacePeople = (facePeople: object[]) => act(async () => { apply(await asHost("face_set_people", { facePeople })); setNotice("얼굴 카드 인물을 저장했습니다."); });
 
   const participantUrl = `${window.location.origin}/`;
@@ -239,8 +241,11 @@ export default function App() {
   };
 
   // ------------------------------------------------------------ 화면 계산
-  const faceSeconds = useCountdown(game?.phase === "face_play" ? game.face?.deadline : null, game?.serverTime);
-  const minoritySeconds = useCountdown(game?.phase === "minority_play" ? game.minorityDeadline : null, game?.serverTime);
+  // 일시정지 중에는 남은 시간을 멈춘 채로 보여 줌
+  const pausedSeconds = game?.paused ? Math.ceil(game.paused.remaining / 1000) : null;
+  const faceSeconds = useCountdown(game?.phase === "face_play" ? game.face?.deadline : null, game?.serverTime) ?? pausedSeconds;
+  const minoritySeconds = useCountdown(game?.phase === "minority_play" ? game.minorityDeadline : null, game?.serverTime) ?? pausedSeconds;
+  const betSeconds = useCountdown(game?.phase === "roulette_betting" ? game.rouletteDeadline : null, game?.serverTime) ?? pausedSeconds;
   const spinElapsed = spinClock ? Math.max(0, Date.now() - spinClock.localStart) : null;
   const resultHidden = spinPending || (spinElapsed !== null && spinElapsed < ROULETTE_SPIN_MS);
   const hostCooldown = spinPending || (spinElapsed !== null && spinElapsed < ROULETTE_SPIN_MS + ROULETTE_RESULT_HOLD_MS);
@@ -250,7 +255,7 @@ export default function App() {
     return <Suspense fallback={<main className="host-app"><p role="status">운영자 화면을 불러오는 중입니다.</p></main>}>
       <HostConsole game={game} busy={busy} resultHidden={resultHidden} hostCooldown={hostCooldown} error={error} notice={notice}
         participantUrl={participantUrl} hostToken={session.token} onAction={hostAction} onTeamAction={teamAction}
-        onTableExclusion={setTableExclusion} onSettings={saveSettings} onFacePeople={saveFacePeople}
+        onTableExclusion={setTableExclusion} onSettings={saveSettings} onFacePeople={saveFacePeople} onAdjust={adjustChips}
         onRefresh={() => refreshRef.current()} onCopy={copyLink} onNewGame={createGame} onLeave={leave} />
     </Suspense>;
   }
@@ -261,11 +266,13 @@ export default function App() {
   const phase = game?.phase ?? "lobby";
   const title = phase === "lobby" ? (view === "beam" ? "GET READY" : null)
     : phase.startsWith("face_") ? `ROUND ${R.face ?? 1} · 얼굴 카드`
+    : phase === "minority_summary" ? `ROUND ${R.minority} 종료 · 중간 순위`
     : phase.startsWith("minority_") ? (game?.minorityPractice ? "연습 문제" : `ROUND ${R.minority} · 소수의 선택`)
+    : phase === "finished" ? "최종 결과"
     : `ROUND ${R.roulette} ROULETTE`;
   const subtitle = phase === "lobby" ? "테이블 참여를 기다리고 있어요."
     : phase === "roulette_tutorial" ? "게임 안내"
-    : phase === "finished" ? "게임이 종료되었습니다."
+    : phase === "finished" || phase === "minority_summary" ? null
     : phase.startsWith("roulette_") ? `${game?.round} / ${game?.settings.rouletteSpins}회` : null;
 
   return <main className={`app ${mode === "team" ? "participant" : "projector"} ${mode === "team" && phase === "roulette_betting" ? "team-betting" : ""} ${mode === "beam" && phase === "lobby" ? "beam-lobby" : ""}`}>
@@ -288,12 +295,15 @@ export default function App() {
           {view === "team" && myTeam && title ? <p>{title}{subtitle && phase !== "lobby" ? ` · ${subtitle}` : ""}</p> : subtitle && <p>{subtitle}</p>}
         </div></div>
         {message}
+        {game.paused && <p role="status" className="message paused-banner">⏸ 진행자가 잠시 멈췄어요. 곧 이어서 진행합니다.</p>}
         {view === "team" && !myTeam && <p role="alert" className="message error">테이블을 찾을 수 없습니다. 운영자에게 확인하거나 ‘다른 테이블로 참여’를 눌러 다시 입장해 주세요.</p>}
         {phase.startsWith("face_") ? <FaceScreen game={game} view={view} busy={busy} seconds={faceSeconds} onPick={index => asTeam("face_pick", { index, turnId: game.face?.turnId })} onAnswer={answer => asTeam("face_answer", { answer, turnId: game.face?.turnId })} />
+          : phase === "minority_summary" ? <Standings game={game} view={view} mode="summary" />
+          : phase === "finished" ? <Standings game={game} view={view} mode="final" />
           : phase.startsWith("minority_") ? <MinorityScreen game={game} view={view} busy={busy} seconds={minoritySeconds} onChoose={choice => asTeam("minority_choose", { choice, minorityRound: game.minorityRound })} />
           : phase === "roulette_tutorial" ? <GameTutorial round={R.roulette} settings={game.settings} view={view} />
           : phase === "lobby" ? <Lobby game={game} view={view} participantUrl={participantUrl} />
-          : <RouletteStage game={game} view={view} busy={busy} resultHidden={resultHidden} spinOffsetMs={spinClock?.initialElapsed ?? 0}
+          : <RouletteStage game={game} view={view} busy={busy} resultHidden={resultHidden} seconds={betSeconds} spinOffsetMs={spinClock?.initialElapsed ?? 0}
               onBet={bet} onSkip={() => asTeam("skip_bet")} onUndoSkip={() => asTeam("undo_skip")} />}
         <footer><span>DT OUTING 2026 <b>✦</b> MACAU</span><span>PLAY BOLD. PLAY TOGETHER.</span></footer>
       </div>}

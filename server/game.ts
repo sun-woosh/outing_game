@@ -2,8 +2,8 @@
  * ALL IN MACAU 게임 규칙 (서버)
  *
  *  진행 순서:  lobby → [얼굴 카드] face_tutorial → face_play → face_result
- *                    → 소수의 선택 minority_tutorial → minority_play ⇄ minority_result
- *                    → 룰렛 roulette_tutorial → roulette_betting ⇄ roulette_result → finished
+ *                    → 소수의 선택 minority_tutorial → minority_play ⇄ minority_result → minority_summary(중간 순위)
+ *                    → 룰렛 roulette_tutorial → roulette_betting ⇄ roulette_result → finished(최종 시상)
  *
  *  - 얼굴 카드 인물을 2명 이상 등록하지 않으면 얼굴 카드를 건너뛰고 소수의 선택부터 시작합니다.
  *  - 상태는 메모리에 두고 index.ts가 파일로 백업합니다. 서버 한 대가 요청을 순서대로 처리합니다.
@@ -24,12 +24,13 @@ type Color = "red" | "black";
 type Phase =
   | "lobby"
   | "face_tutorial" | "face_play" | "face_result"
-  | "minority_tutorial" | "minority_play" | "minority_result"
+  | "minority_tutorial" | "minority_play" | "minority_result" | "minority_summary"
   | "roulette_tutorial" | "roulette_betting" | "roulette_result"
   | "finished";
 type Team = {
   id: string; table: number; name: string; token: string; chips: number;
-  faceChange?: number;
+  // 라운드별로 얻은 칩 (중간 순위·최종 화면의 내역용)
+  faceChange?: number; minorityTotal?: number; adjustTotal?: number;
   minorityChoice?: number | null; minorityChange?: number | null;
   bet: { color: Color; amount: number } | null; skipped?: boolean;
 };
@@ -39,6 +40,8 @@ type Settings = {
   rouletteSpins: number;
   minorityRounds: number;
   minorityBonus: number;
+  minoritySeconds: number;
+  rouletteBetSeconds: number;
   minorityQuestions: MinorityQuestion[];
   minorityPracticeQuestion: MinorityQuestion;
 } & FaceSettings;
@@ -49,14 +52,15 @@ type Room = {
   face?: FaceState | null;
   minorityRound?: number; minorityPractice?: boolean; minorityDeadline?: number | null; minorityResultAt?: number | null;
   minorityResult?: MinorityOutcome | null; minorityHistory?: MinorityHistory[];
-  round: number; result: Color | null; rouletteSpinStartedAt?: number | null; history: RouletteHistory[];
+  round: number; result: Color | null; rouletteDeadline?: number | null; rouletteSpinStartedAt?: number | null; history: RouletteHistory[];
+  paused?: { remaining: number } | null; // 운영자 일시정지 (남은 시간 보관)
+  adjustments?: { table: number; delta: number; reason: string; at: number }[];
 };
 type Payload = Record<string, unknown>;
 export type ApiResult = { status: number; body: any };
 
-const MINORITY_SECONDS = 30;
 const defaultSettings: Settings = {
-  tableCount: 14, rouletteSpins: 3, minorityBonus: 100,
+  tableCount: 14, rouletteSpins: 3, minorityBonus: 100, minoritySeconds: 30, rouletteBetSeconds: 60,
   minorityRounds: DOCUMENT_MINORITIES.length, minorityQuestions: DOCUMENT_MINORITIES, minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION,
   ...defaultFaceSettings,
 };
@@ -158,6 +162,9 @@ export function publicState(room: Room, teamToken = "", isHost = false) {
     minorityDeadline: room.minorityDeadline ?? null,
     minorityResult: room.minorityResult ?? null,
     minorityHistory: isHost ? room.minorityHistory ?? [] : [],
+    paused: room.paused ? { remaining: room.paused.remaining } : null,
+    rouletteDeadline: room.rouletteDeadline ?? null,
+    adjustments: isHost ? room.adjustments ?? [] : [],
     round: room.round,
     result: room.result,
     rouletteSpinStartedAt: room.rouletteSpinStartedAt ?? null,
@@ -168,6 +175,8 @@ export function publicState(room: Room, teamToken = "", isHost = false) {
       return {
         id: team.id, table: team.table, name: team.name, chips: team.chips,
         faceChange: team.faceChange ?? 0,
+        minorityTotal: team.minorityTotal ?? 0,
+        adjustTotal: team.adjustTotal ?? 0,
         skipped: team.skipped === true,
         // 선택 중에는 다른 테이블의 선택·베팅 색을 숨김
         minorityChoice: room.phase === "minority_play" && !isMine && !isHost ? null : team.minorityChoice ?? null,
@@ -188,15 +197,60 @@ function load(code: string): Room {
   return room;
 }
 
+// ------------------------------------------------------------------ 타이머 (얼굴 카드 · 소수의 선택 · 룰렛 베팅)
+type Timer = { get: () => number | null | undefined; set: (v: number | null) => void };
+/** 지금 단계에서 돌아가는 타이머 (없으면 null) */
+function activeTimer(room: Room): Timer | null {
+  if (room.phase === "face_play" && room.face && room.face.stage !== "done") return { get: () => room.face!.deadline, set: v => { room.face!.deadline = v; } };
+  if (room.phase === "minority_play") return { get: () => room.minorityDeadline, set: v => { room.minorityDeadline = v; } };
+  if (room.phase === "roulette_betting") return { get: () => room.rouletteDeadline, set: v => { room.rouletteDeadline = v; } };
+  return null;
+}
+/** 단계가 바뀌면 일시정지는 자동으로 풀림 */
+function clearStalePause(room: Room) {
+  if (room.paused && !activeTimer(room)) room.paused = null;
+}
+function revealMinority(game: Room) {
+  const question = currentQuestion(game);
+  if (!question) fail("문제를 찾을 수 없습니다.");
+  const result = countMinorityChoices(question.options.length, game.teams.map(team => team.minorityChoice));
+  for (const team of game.teams) {
+    const won = typeof team.minorityChoice === "number" && result.winningChoices.includes(team.minorityChoice);
+    team.minorityChange = won ? game.settings.minorityBonus : 0;
+    if (!game.minorityPractice) { team.chips += team.minorityChange; team.minorityTotal = (team.minorityTotal ?? 0) + team.minorityChange; }
+  }
+  game.minorityResult = result;
+  game.minorityResultAt = Date.now();
+  game.minorityDeadline = null;
+  if (!game.minorityPractice) {
+    (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map(team => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
+  }
+  game.phase = "minority_result";
+}
+/** 베팅 시간이 끝나면 아직 베팅하지 않은 테이블은 이번 판을 건너뜀 */
+function closeBetting(game: Room) {
+  game.rouletteDeadline = null;
+  for (const team of game.teams) if (team.chips > 0 && !team.bet) team.skipped = true;
+}
+/** 시간 경과에 따른 자동 진행. 바뀌었으면 true */
+function reconcile(room: Room, now = Date.now()): boolean {
+  if (room.paused) return false;
+  let changed = reconcileFace(room, now);
+  if (room.phase === "minority_play" && typeof room.minorityDeadline === "number" && now >= room.minorityDeadline) { revealMinority(room); changed = true; }
+  if (room.phase === "roulette_betting" && typeof room.rouletteDeadline === "number" && now >= room.rouletteDeadline) { closeBetting(room); changed = true; }
+  return changed;
+}
+
 /** 한 요청을 처리. 실패하면 변경을 되돌리되, 그 전에 처리된 시간 초과 진행은 유지합니다. */
 function mutate(code: string, operation: (room: Room) => void): Room {
   if (store.activeRoom !== code) fail("진행 중인 게임이 변경됐습니다. 다시 입장해 주세요.", 409);
   const room = load(code);
-  const advanced = reconcileFace(room);
+  const advanced = reconcile(room);
   const snapshot = structuredClone(room);
   try {
     operation(room);
-    reconcileFace(room);
+    reconcile(room);
+    clearStalePause(room);
   } catch (error) {
     store.rooms[code] = snapshot;
     if (advanced) onChange();
@@ -206,10 +260,10 @@ function mutate(code: string, operation: (room: Room) => void): Room {
   return room;
 }
 
-/** 주기적으로 호출: 얼굴 카드의 시간 초과 진행 */
+/** 주기적으로 호출: 시간 초과 자동 진행 */
 export function tick(): boolean {
   const room = activeRoomData();
-  if (room && reconcileFace(room)) { onChange(); return true; }
+  if (room && reconcile(room)) { clearStalePause(room); onChange(); return true; }
   return false;
 }
 
@@ -220,13 +274,13 @@ function handleError(error: unknown): ApiResult {
 }
 
 // ------------------------------------------------------------------ 조회
-export type GetParams = { active?: boolean; room?: string | null; teamToken?: string | null; hostToken?: string | null };
+type GetParams = { active?: boolean; room?: string | null; teamToken?: string | null; hostToken?: string | null };
 export async function GET(params: GetParams): Promise<ApiResult> {
   try {
     const code = params.active ? store.activeRoom : codeOf(params.room);
     if (!code) return json({ state: null });
     const room = load(code);
-    if (reconcileFace(room)) onChange();
+    if (reconcile(room)) { clearStalePause(room); onChange(); }
     const hostToken = params.hostToken ?? null;
     if (hostToken !== null) requireHost(hostToken, await hostTokenForPassword());
     return json({ state: publicState(room, params.teamToken ?? "", hostToken !== null) });
@@ -240,7 +294,12 @@ const HOST_ACTIONS = new Set([
   "update_settings", "face_set_people", "exclude_table", "include_table", "remove_team",
   "start_face", "start_face_game", "face_close", "face_stop",
   "start_minority", "start_minority_practice", "start_minority_game", "reveal_minority", "next_minority",
-  "start_roulette", "start_roulette_game", "finish_no_chips", "spin", "next",
+  "minority_summary", "start_roulette", "start_roulette_game", "finish_no_chips", "spin", "next",
+  "pause", "resume", "extend", "adjust_chips",
+]);
+const PROGRESS_ACTIONS = new Set([
+  "start_face", "start_face_game", "face_close", "start_minority", "start_minority_practice", "start_minority_game",
+  "reveal_minority", "next_minority", "minority_summary", "start_roulette", "start_roulette_game", "finish_no_chips", "spin", "next",
 ]);
 // skip_bet / undo_skip은 테이블(본인)과 운영자(teamId 지정) 모두 사용
 
@@ -280,8 +339,10 @@ export async function POST(input: unknown): Promise<ApiResult> {
     const code = body.room ? codeOf(body.room) : store.activeRoom;
     if (!code) fail("진행 중인 게임이 없습니다. 운영자를 기다려 주세요.", 404);
     const hostToken = HOST_ACTIONS.has(action) || ((action === "skip_bet" || action === "undo_skip") && !body.teamToken) ? await hostTokenForPassword() : "";
+    // 다음 단계로 넘기는 운영자 동작은 일시정지를 풀고 진행
+    const unpause = PROGRESS_ACTIONS.has(action);
     const asHost = (fn: (room: Room) => void) => {
-      const room = mutate(code, game => { requireHost(body.hostToken, hostToken); fn(game); });
+      const room = mutate(code, game => { requireHost(body.hostToken, hostToken); if (unpause) game.paused = null; fn(game); });
       return json({ state: publicState(room, "", true) });
     };
     const asTeam = (fn: (room: Room, team: Team) => void) => {
@@ -302,8 +363,11 @@ export async function POST(input: unknown): Promise<ApiResult> {
           // 같은 테이블 번호로 들어오면 같은 테이블로 연결 (테이블당 여러 폰 가능)
           const existing = game.teams.find(team => team.table === table);
           if (existing) { teamToken = existing.token; return; }
-          if (game.phase !== "lobby") fail("게임이 시작되어 새로운 테이블은 참여할 수 없습니다.");
-          game.teams.push({ id: crypto.randomUUID(), table, name: `${table}번 테이블`, token: teamToken, chips: 0, bet: null, skipped: false });
+          if (game.phase === "finished") fail("게임이 끝났습니다.");
+          // 늦게 온 테이블도 0칩으로 참여. 얼굴 카드 중이면 맨 마지막 차례로
+          const team: Team = { id: crypto.randomUUID(), table, name: `${table}번 테이블`, token: teamToken, chips: 0, bet: null, skipped: false };
+          game.teams.push(team);
+          if (game.face && game.phase === "face_play") game.face.order.push(team.id);
         });
         return json({ teamToken, state: publicState(room, teamToken) });
       }
@@ -331,6 +395,8 @@ export async function POST(input: unknown): Promise<ApiResult> {
             tableCount,
             rouletteSpins: int("rouletteSpins", 1, 20, "룰렛 횟수", s.rouletteSpins),
             minorityBonus: int("minorityBonus", 0, 100000, "소수 선택 보너스", s.minorityBonus),
+            minoritySeconds: int("minoritySeconds", 10, 120, "소수의 선택 시간", s.minoritySeconds),
+            rouletteBetSeconds: int("rouletteBetSeconds", 15, 300, "룰렛 베팅 시간", s.rouletteBetSeconds),
             minorityQuestions: questions,
             minorityRounds,
             minorityPracticeQuestion: data.minorityPracticeQuestion === undefined ? s.minorityPracticeQuestion : validateQuestion(data.minorityPracticeQuestion),
@@ -413,13 +479,14 @@ export async function POST(input: unknown): Promise<ApiResult> {
           for (const team of game.teams) { team.minorityChoice = null; team.minorityChange = null; }
           game.minorityResult = null;
           game.minorityResultAt = null;
-          game.minorityDeadline = Date.now() + MINORITY_SECONDS * 1000;
+          game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1000;
           game.phase = "minority_play";
         });
       case "minority_choose":
         return asTeam((game, team) => {
           const choice = body.choice;
           if (game.phase !== "minority_play") fail("지금은 선택할 수 없습니다.");
+          if (game.paused) fail("진행자가 잠시 멈췄어요. 잠시만 기다려 주세요.");
           if (body.minorityRound !== (game.minorityRound ?? 1)) fail("문제가 변경되었습니다. 화면을 확인하고 다시 선택해 주세요.", 409);
           if (typeof game.minorityDeadline !== "number" || Date.now() >= game.minorityDeadline) fail("선택 시간이 끝났습니다.", 409);
           const question = currentQuestion(game);
@@ -430,27 +497,19 @@ export async function POST(input: unknown): Promise<ApiResult> {
         return asHost(game => {
           if (game.phase !== "minority_play") fail("결과를 발표할 문제가 없습니다.");
           if (body.minorityRound !== (game.minorityRound ?? 1)) fail("문제가 변경되었습니다. 화면을 확인해 주세요.", 409);
-          const question = currentQuestion(game);
-          if (!question) fail("문제를 찾을 수 없습니다.");
-          const result = countMinorityChoices(question.options.length, game.teams.map(team => team.minorityChoice));
-          for (const team of game.teams) {
-            const won = typeof team.minorityChoice === "number" && result.winningChoices.includes(team.minorityChoice);
-            team.minorityChange = won ? game.settings.minorityBonus : 0;
-            if (!game.minorityPractice) team.chips += team.minorityChange;
-          }
-          game.minorityResult = result;
-          game.minorityResultAt = Date.now();
-          game.minorityDeadline = null;
-          if (!game.minorityPractice) {
-            (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map(team => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
-          }
-          game.phase = "minority_result";
+          revealMinority(game);
+        });
+      case "minority_summary":
+        return asHost(game => {
+          const done = game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds;
+          if (!done) fail("소수의 선택을 모두 마친 뒤 중간 순위를 볼 수 있습니다.");
+          game.phase = "minority_summary";
         });
 
       // ---------------------------------------------------------- 룰렛
       case "start_roulette":
         return asHost(game => {
-          const minorityDone = game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds;
+          const minorityDone = game.phase === "minority_summary" || (game.phase === "minority_result" && !game.minorityPractice && (game.minorityRound ?? 1) >= game.settings.minorityRounds);
           if (!minorityDone) fail("소수의 선택을 모두 마친 뒤 룰렛을 시작할 수 있습니다.");
           game.phase = "roulette_tutorial";
         });
@@ -459,6 +518,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
           if (game.phase !== "roulette_tutorial") fail("룰렛 안내 화면에서 게임을 시작해 주세요.");
           game.round = 1;
           game.phase = "roulette_betting";
+          game.rouletteDeadline = Date.now() + game.settings.rouletteBetSeconds * 1000;
         });
       case "finish_no_chips":
         return asHost(game => {
@@ -470,7 +530,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
         const { amount, color } = body;
         if ((color !== "red" && color !== "black") || !Number.isSafeInteger(amount) || (amount as number) < 1) fail("색과 베팅할 칩을 확인해 주세요.");
         return asTeam((game, team) => {
-          if (game.phase !== "roulette_betting") fail("이번 베팅은 마감되었습니다.");
+          if (game.phase !== "roulette_betting" || (!game.rouletteDeadline && !game.paused)) fail("이번 베팅은 마감되었습니다.");
           if (team.skipped) fail("베팅 건너뛰기를 취소한 뒤 다시 베팅해 주세요.");
           if ((amount as number) > team.chips) fail("보유 칩보다 많이 베팅할 수 없습니다.");
           team.bet = { color: color as Color, amount: amount as number };
@@ -488,6 +548,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
             team.skipped = true;
           } else {
             if (!team.skipped) fail("건너뛴 테이블이 아닙니다.");
+            if (!byHost && !game.rouletteDeadline && !game.paused) fail("베팅 시간이 끝났습니다.");
             team.skipped = false;
           }
         };
@@ -508,6 +569,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
             settled.push({ id: team.id, name: team.name, table: team.table, color: team.bet.color, amount: team.bet.amount, change, chips: team.chips });
           }
           game.history.push({ round: game.round, result: color, teams: settled });
+          game.rouletteDeadline = null;
           game.result = color;
           game.rouletteSpinStartedAt = Date.now();
           game.phase = "roulette_result";
@@ -520,9 +582,48 @@ export async function POST(input: unknown): Promise<ApiResult> {
           if (game.round >= game.settings.rouletteSpins || game.teams.every(team => team.chips === 0)) { game.phase = "finished"; return; }
           game.round += 1;
           game.phase = "roulette_betting";
+          game.rouletteDeadline = Date.now() + game.settings.rouletteBetSeconds * 1000;
           game.result = null;
           game.rouletteSpinStartedAt = null;
           for (const team of game.teams) { team.bet = null; team.skipped = false; }
+        });
+
+      // ---------------------------------------------------------- 운영 도구
+      case "pause":
+        return asHost(game => {
+          const timer = activeTimer(game);
+          const deadline = timer?.get();
+          if (!timer || typeof deadline !== "number") fail("지금은 멈출 타이머가 없습니다.");
+          if (game.paused) return;
+          game.paused = { remaining: Math.max(0, deadline - Date.now()) };
+          timer.set(null);
+        });
+      case "resume":
+        return asHost(game => {
+          if (!game.paused) return;
+          activeTimer(game)?.set(Date.now() + game.paused.remaining);
+          game.paused = null;
+        });
+      case "extend":
+        return asHost(game => {
+          const timer = activeTimer(game);
+          if (!timer) fail("지금은 늘릴 타이머가 없습니다.");
+          if (game.paused) { game.paused.remaining += 15_000; return; }
+          // 룰렛 베팅이 이미 마감됐다면 15초 다시 열어 줌
+          timer.set(Math.max(timer.get() ?? 0, Date.now()) + 15_000);
+        });
+      case "adjust_chips":
+        return asHost(game => {
+          const team = game.teams.find(t => t.id === body.teamId);
+          const delta = body.delta;
+          if (!team) fail("테이블을 찾을 수 없습니다.");
+          if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta as number) > 100000) fail("조정할 칩을 확인해 주세요.");
+          if (game.phase === "roulette_result" || (game.phase === "roulette_betting" && team.bet)) fail("룰렛 결과가 정산되는 중에는 조정할 수 없습니다.");
+          const next = team.chips + (delta as number);
+          if (next < 0) fail("칩이 0보다 작아질 수 없습니다.");
+          team.chips = next;
+          team.adjustTotal = (team.adjustTotal ?? 0) + (delta as number);
+          (game.adjustments ??= []).push({ table: team.table, delta: delta as number, reason: str(body.reason).trim().slice(0, 100), at: Date.now() });
         });
       default:
         return fail("알 수 없는 요청입니다.");

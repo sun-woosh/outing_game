@@ -111,3 +111,4 @@
   .face-answer input{font-size:18px;min-height:52px}
   .face-ranking>div{font-size:15px;gap:8px}
 }
+.face-steps strong{flex:none;white-space:nowrap}

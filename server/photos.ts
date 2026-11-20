@@ -7,7 +7,7 @@ type Photo = { mime: string; data: Buffer };
 const photos = new Map<string, Photo>();
 let dir = "";
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-export const MAX_PHOTO_BYTES = 1_500_000;
+const MAX_PHOTO_BYTES = 1_500_000;
 
 export function initPhotos(dataDir: string) {
   dir = path.join(dataDir, "photos");
