@@ -16,7 +16,7 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
       <div className="eyebrow"><span /> 2026 DT OUTING <span /></div>
       <h1>ALL IN<br /><em>MACAU</em></h1>
       <p className="intro-sub">2026 DT OUTING <span>✦</span> TEAM GAME</p>
-      <p className="intro-copy">테이블이 함께 상의하고, 함께 칩을 모으세요.<br />단 한 번의 선택으로 순위가 뒤집힙니다.</p>
+      <p className="intro-copy">테이블이 함께 상의하고, 함께 칩을 모으세요.<br />어떤 게임이 기다리고 있을지는 곧 공개됩니다.</p>
     </section>
     <section className="entry card">
       <div className="card-kicker">WELCOME TO THE TABLE</div>
@@ -35,11 +35,6 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
             {!roomReady && <p className="helper">{activeKnown ? "운영자가 게임을 준비 중입니다. 잠시만 기다려 주세요." : "게임을 확인하는 중입니다."}</p>}
           </form>}
       {message}
-    </section>
-    <section className="how">
-      <div><b>01</b><span>얼굴 카드 매치</span></div>
-      <div><b>02</b><span>소수의 선택</span></div>
-      <p>마지막에 칩이 가장 많은 테이블이 승리합니다.</p>
     </section>
   </div>;
 }

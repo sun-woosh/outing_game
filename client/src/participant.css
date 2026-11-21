@@ -20,8 +20,6 @@
 .participant .entry input::placeholder{font-size:16px;font-weight:400;color:#aa9080}
 .participant .primary{border-radius:10px;background:linear-gradient(135deg,#f3d699,#dbb56e);color:#271410;min-height:56px;font-size:16px;box-shadow:0 5px 15px #10030330}
 .participant .entry .primary{margin-top:18px}
-.participant .how{gap:16px 28px;padding-top:20px;border-color:#b58a604f}
-.participant .how b{font-size:16px}.participant .how span,.participant .how p{font-size:13px;color:#d4beb0}
 .participant .game-shell{width:min(720px,calc(100% - 40px));padding:32px 0 32px}
 .participant .game-heading{margin-bottom:22px}
 .participant .game-heading .eyebrow{font-size:10px;letter-spacing:.16em}
@@ -55,7 +53,7 @@
  .participant .topbar{height:62px;padding:0 16px}.participant .brand-mark{width:34px;height:34px;border-radius:10px}.participant .brand{font-size:11px}
  .participant .landing{display:flex;flex-direction:column;align-items:stretch;gap:16px;padding:25px 0 28px}
  .participant .intro{order:0;min-height:0;padding:0 0 4px}.participant .intro h1{font-size:clamp(49px,14vw,68px);margin:16px 0 10px}.participant .intro-sub{font-size:10px}.participant .intro-copy{font-size:13px;margin:10px 0 0;max-width:none;line-height:1.6}
- .participant .entry{order:1;max-width:none;padding:24px 22px}.participant .entry h2{font-size:25px}.participant .entry .muted{font-size:14px;margin-bottom:16px}.participant .entry label{margin-top:15px}.participant .entry input{height:56px}.participant .entry .primary{min-height:56px}.participant .how{order:2;display:grid;grid-template-columns:1fr;gap:9px;padding-top:16px}.participant .how div{width:auto}.participant .how p{width:auto;margin:4px 0 0}
+ .participant .entry{order:1;max-width:none;padding:24px 22px}.participant .entry h2{font-size:25px}.participant .entry .muted{font-size:14px;margin-bottom:16px}.participant .entry label{margin-top:15px}.participant .entry input{height:56px}.participant .entry .primary{min-height:56px}
  .participant .game-shell{padding:22px 0 28px}.participant .game-heading{margin-bottom:16px}.participant .game-heading h1{font-size:27px}.participant .game-heading p{font-size:12px}.participant .lobby-card,.participant .bet-panel,.participant .tutorial-card{padding:22px 20px}.participant .lobby-card h2{font-size:25px}
  .participant .minority-team .minority-card{padding:22px 18px}.participant .minority-question{font-size:23px}.participant .minority-team .minority-options button{min-height:72px;font-size:17px}.participant .minority-team .minority-options button span{width:36px;height:36px}.participant .minority-clock strong{font-size:27px}
  .participant .roulette-stage>.table{padding:18px}.participant .roulette-stage>.table .table-body .wheel-wrap{width:min(160px,45%)}.participant .wheel-caption strong{font-size:20px}.participant .bet-panel .color-button{min-height:70px}.participant .bet-panel label{font-size:15px}.participant .tutorial-header h2{font-size:26px}
