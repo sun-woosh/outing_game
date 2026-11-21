@@ -504,8 +504,9 @@ function photoDataUrl(id) {
 }
 
 // server/game.ts
+var DEFAULT_EXCLUDED_TABLES = [1];
 var defaultSettings = {
-  tableCount: 14,
+  tableCount: 12,
   rouletteSpins: 3,
   minorityBonus: 100,
   minoritySeconds: 30,
@@ -815,7 +816,7 @@ async function POST(input) {
         result: null,
         history: [],
         settings: structuredClone({ ...defaultSettings, ...prior?.settings || {} }),
-        excludedTables: [...prior?.excludedTables || []]
+        excludedTables: prior ? [...prior.excludedTables || []] : [...DEFAULT_EXCLUDED_TABLES]
       };
       store.rooms[code2] = room;
       store.activeRoom = code2;

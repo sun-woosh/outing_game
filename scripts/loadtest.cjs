@@ -38,6 +38,7 @@ async function call(s, ev, body, record = true) {
   const room = created.body.room;
   const settings = { ...created.body.state.settings, tableCount: TABLES, rouletteSpins: SPINS, minorityRounds: QUESTIONS };
   await call(host, "api", { action: "update_settings", room, hostToken, settings }, false);
+  for (const table of created.body.state.excludedTables) await call(host, "api", { action: "include_table", room, hostToken, table }, false); // 부하 테스트는 모든 테이블 사용
   let hs = null;
   host.on("state", r => (hs = r.body.state));
   await call(host, "hello", { hostToken }, false);

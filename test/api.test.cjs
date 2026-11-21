@@ -43,6 +43,11 @@ test("운영자 로그인과 새 게임", async () => {
   room = created.body.room;
   assert.match(room, /^[A-Z2-9]{6}$/);
   const s = created.body.state.settings;
+  // 기본값: 테이블 12개, 1번 테이블 불참
+  assert.strictEqual(s.tableCount, 12);
+  assert.deepStrictEqual(created.body.state.excludedTables, [1]);
+  assert.strictEqual((await post({ action: "join", table: 1 })).status, 400);
+  assert.strictEqual((await H("include_table", { table: 1 })).status, 200);
   assert.strictEqual((await H("update_settings", { settings: { ...s, tableCount: 5, minorityRounds: 1, rouletteSpins: 1 } })).status, 200);
 });
 

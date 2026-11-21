@@ -59,8 +59,10 @@ type Room = {
 type Payload = Record<string, unknown>;
 export type ApiResult = { status: number; body: any };
 
+/** 처음 게임을 만들 때 불참 처리해 두는 테이블 (운영자 화면에서 "불참 복구" 가능) */
+const DEFAULT_EXCLUDED_TABLES = [1];
 const defaultSettings: Settings = {
-  tableCount: 14, rouletteSpins: 3, minorityBonus: 100, minoritySeconds: 30, rouletteBetSeconds: 60,
+  tableCount: 12, rouletteSpins: 3, minorityBonus: 100, minoritySeconds: 30, rouletteBetSeconds: 60,
   minorityRounds: DOCUMENT_MINORITIES.length, minorityQuestions: DOCUMENT_MINORITIES, minorityPracticeQuestion: DEFAULT_PRACTICE_QUESTION,
   ...defaultFaceSettings,
 };
@@ -327,7 +329,7 @@ export async function POST(input: unknown): Promise<ApiResult> {
       const room: Room = {
         room: code, phase: "lobby", teams: [], round: 1, result: null, history: [],
         settings: structuredClone({ ...defaultSettings, ...(prior?.settings || {}) }),
-        excludedTables: [...(prior?.excludedTables || [])],
+        excludedTables: prior ? [...(prior.excludedTables || [])] : [...DEFAULT_EXCLUDED_TABLES],
       };
       store.rooms[code] = room;
       store.activeRoom = code;

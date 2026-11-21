@@ -56,7 +56,7 @@ export default function App() {
   const [room, setRoom] = useState("");
   const [activeKnown, setActiveKnown] = useState(false);
   const [hostAuth, setHostAuth] = useState(() => (mode === "host" ? savedSession("host")?.token ?? "" : ""));
-  const [tableCount, setTableCount] = useState(14);
+  const [tableCount, setTableCount] = useState(12);
   const [excluded, setExcluded] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
