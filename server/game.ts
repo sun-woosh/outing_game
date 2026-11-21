@@ -14,7 +14,7 @@ import { ROULETTE_RESULT_HOLD_MS, ROULETTE_SPIN_MS } from "../client/src/lib/rou
 import { DOCUMENT_MINORITIES, DEFAULT_PRACTICE_QUESTION } from "../client/src/lib/minority-questions";
 import { countMinorityChoices, type MinorityOutcome } from "../client/src/lib/minority-result";
 import {
-  defaultFaceSettings, faceEnabled, readyPeople, reconcileFace, facePublic, startFaceTutorial, startFaceGame,
+  defaultFaceSettings, readyPeople, reconcileFace, facePublic, startFaceTutorial, startFaceGame,
   closeFaceStage, stopFaceAfterTurn, facePick, faceAnswer, validateFacePeople, FaceError, type FaceSettings, type FaceState,
 } from "./face";
 import { photoExists } from "./photos";
@@ -140,7 +140,8 @@ function requireTeam(room: Room, credential: unknown) {
 
 // ------------------------------------------------------------------ 화면으로 보내는 상태
 /** 얼굴 카드를 이번 게임에서 하는지 (진행했거나, 대기실에서 인물이 등록돼 있으면) */
-const faceUsed = (room: Room) => !!room.face || room.phase.startsWith("face_") || (room.phase === "lobby" && faceEnabled(room.settings));
+// 대기실에서는 계획대로 얼굴 카드 매치를 1라운드로 보여 주고, 운영자가 "얼굴 카드 없이 시작"을 고른 경우에만 빠짐
+const faceUsed = (room: Room) => room.phase === "lobby" || !!room.face || room.phase.startsWith("face_");
 
 export function publicState(room: Room, teamToken = "", isHost = false) {
   const myTeam = room.teams.find(team => teamToken && team.token === teamToken);

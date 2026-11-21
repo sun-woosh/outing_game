@@ -594,7 +594,7 @@ function requireTeam(room, credential) {
   if (!team) fail2("\uD14C\uC774\uBE14 \uC815\uBCF4\uB97C \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.", 403);
   return team;
 }
-var faceUsed = (room) => !!room.face || room.phase.startsWith("face_") || room.phase === "lobby" && faceEnabled(room.settings);
+var faceUsed = (room) => room.phase === "lobby" || !!room.face || room.phase.startsWith("face_");
 function publicState(room, teamToken = "", isHost = false) {
   const myTeam = room.teams.find((team) => teamToken && team.token === teamToken);
   const questionIndex = !room.minorityPractice && (room.phase === "minority_play" || room.phase === "minority_result") ? (room.minorityRound ?? 1) - 1 : -1;

@@ -29,3 +29,4 @@
 .host-adjust-log{list-style:none;padding:0;margin:14px 0 0;font-size:14px;color:#c6ad92;display:flex;flex-direction:column;gap:4px}
 .host-adjust-log b{color:#f8eddb}
 @media(max-width:800px){.host-adjust-form{grid-template-columns:1fr 1fr}}
+.host-warning{background:#5c2a1c;border:1px solid #c9794a;color:#ffe0c8;padding:12px 14px;line-height:1.6}

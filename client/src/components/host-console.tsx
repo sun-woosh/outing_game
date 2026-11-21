@@ -47,7 +47,11 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
         {go("start_face", "1라운드 얼굴 카드 매치 안내", noTeams)}
         <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드를 건너뛰고 소수의 선택부터 시작할까요?")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>
       </>;
-      return <><p>{intro} (얼굴 카드를 하려면 게임 설정에서 인물을 2명 이상 등록하세요.)</p>{go("start_minority", "1라운드 안내 시작", noTeams)}</>;
+      return <>
+        <p className="host-warning">⚠ 얼굴 카드 매치 사진이 등록되지 않았습니다. <b>게임 설정 → 얼굴 카드 인물</b>에서 2명 이상 등록하거나 백업 파일을 불러오세요.</p>
+        {go("start_face", "1라운드 얼굴 카드 매치 안내", true)}
+        <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드를 건너뛰고 소수의 선택부터 시작할까요? 소수의 선택이 1라운드가 됩니다.")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>
+      </>;
     }
     case "face_tutorial":
       return <><p>참가자와 빔 화면에 얼굴 카드 규칙을 보여주고 있습니다. 설명이 끝나면 시작하세요. 테이블 번호 순서로 차례가 돌아갑니다.</p>{go("start_face_game", "얼굴 카드 시작")}</>;
