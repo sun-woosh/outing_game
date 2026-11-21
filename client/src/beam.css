@@ -40,3 +40,5 @@
 .lobby-rounds span{font-size:16px;color:#e4d2c4}
 .lobby-win{margin-top:16px;font-size:18px;font-weight:700;color:#f1cf88}
 .beam-lobby-grid .leaderboard .lobby-rounds{margin-top:30px}
+.projector .beam-table-number.absent{background:#211516;border-color:#5b4841;color:#97867c;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.projector .beam-table-number.absent small{font-size:13px;letter-spacing:.08em;margin:0}
