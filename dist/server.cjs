@@ -245,6 +245,7 @@ function countMinorityChoices(optionCount, choices) {
 
 // server/face.ts
 var import_node_crypto = require("node:crypto");
+var FACE_BOARDS = [{ pairs: 8, cols: 4 }, { pairs: 12, cols: 6 }];
 var defaultFaceSettings = { facePeople: [], faceMatchBonus: 100, faceNameBonus: 50, faceSelectSeconds: 30, faceNameSeconds: 30 };
 var FACE_MISMATCH_MS = 3e3;
 var FACE_NAME_RESULT_MS = 5e3;
@@ -258,8 +259,12 @@ var FaceError = class extends Error {
 var fail = (message, status = 400) => {
   throw new FaceError(message, status);
 };
-var readyPeople = (settings) => (settings.facePeople || []).filter((p) => p.name.trim() && p.photo);
-var faceEnabled = (settings) => readyPeople(settings).length >= 2;
+var readyPeople = (settings, board) => (settings.facePeople || []).filter((p) => p.name.trim() && p.photo && (!board || (p.board ?? 1) === board));
+function faceBoardsReady(settings) {
+  const counts = [readyPeople(settings, 1).length, readyPeople(settings, 2).length];
+  return { ok: counts[0] === FACE_BOARDS[0].pairs && counts[1] === FACE_BOARDS[1].pairs, counts };
+}
+var boardsMessage = (counts) => `\uC5BC\uAD74 \uCE74\uB4DC\uB294 1\uD310 ${FACE_BOARDS[0].pairs}\uBA85, 2\uD310 ${FACE_BOARDS[1].pairs}\uBA85\uC774 \uD544\uC694\uD569\uB2C8\uB2E4. \uC9C0\uAE08 1\uD310 ${counts[0]}\uBA85, 2\uD310 ${counts[1]}\uBA85\uC774 \uB4F1\uB85D\uB3FC \uC788\uC2B5\uB2C8\uB2E4.`;
 var normalize = (s) => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s.·\-_]/g, "");
 var nameMatches = (answer, person) => [person.name, ...person.aliases || []].some((n) => n && normalize(n) === normalize(answer));
 function shuffle(items) {
@@ -303,7 +308,17 @@ function finishFace(room) {
   f.stage = "done";
   f.deadline = null;
   f.selected = [];
-  room.phase = "face_result";
+  f.stopAfterTurn = false;
+  room.phase = f.boardNo === 1 ? "face_break" : "face_result";
+}
+function dealBoard(room, board) {
+  const people = readyPeople(room.settings, board);
+  const f = room.face;
+  f.boardNo = board;
+  f.board = shuffle(people.flatMap((p) => [p.id, p.id]));
+  f.selected = [];
+  f.removed = [];
+  f.stopAfterTurn = false;
 }
 function judge(room, now) {
   const f = room.face;
@@ -332,7 +347,7 @@ function gradeName(room, now) {
   for (const teamId of winners) award(room, teamId, room.settings.faceNameBonus);
   f.removed.push(personId);
   f.result = { personId, name: person.name, attackerId: f.order[f.turnIndex], winners, answers: { ...f.answers } };
-  f.history.push({ personId, name: person.name, attackerId: f.result.attackerId, winners });
+  f.history.push({ personId, name: person.name, attackerId: f.result.attackerId, winners, board: f.boardNo });
   f.stage = "name_result";
   f.deadline = now + FACE_NAME_RESULT_MS;
 }
@@ -348,7 +363,8 @@ function reconcileFace(room, now = Date.now()) {
 function startFaceTutorial(room) {
   if (room.phase !== "lobby") fail("\uB300\uAE30\uC2E4\uC5D0\uC11C\uB9CC \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
   if (!room.teams.length) fail("\uCC38\uC5EC\uD55C \uD14C\uC774\uBE14\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
-  if (!faceEnabled(room.settings)) fail("\uC5BC\uAD74 \uCE74\uB4DC\uC5D0 \uC4F8 \uC0AC\uB78C\uC744 2\uBA85 \uC774\uC0C1(\uC774\uB984\uACFC \uC0AC\uC9C4) \uB4F1\uB85D\uD574 \uC8FC\uC138\uC694.");
+  const ready = faceBoardsReady(room.settings);
+  if (!ready.ok) fail(boardsMessage(ready.counts));
   for (const team of room.teams) {
     team.chips = 0;
     team.faceChange = 0;
@@ -359,13 +375,14 @@ function startFaceTutorial(room) {
 function startFaceGame(room, now = Date.now()) {
   if (room.phase !== "face_tutorial") fail("\uC5BC\uAD74 \uCE74\uB4DC \uC548\uB0B4 \uD654\uBA74\uC5D0\uC11C \uC2DC\uC791\uD574 \uC8FC\uC138\uC694.");
   if (!room.teams.length) fail("\uCC38\uC5EC\uD55C \uD14C\uC774\uBE14\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
-  const people = readyPeople(room.settings);
-  if (people.length < 2) fail("\uC5BC\uAD74 \uCE74\uB4DC\uC5D0 \uC4F8 \uC0AC\uB78C\uC744 2\uBA85 \uC774\uC0C1 \uB4F1\uB85D\uD574 \uC8FC\uC138\uC694.");
+  const ready = faceBoardsReady(room.settings);
+  if (!ready.ok) fail(boardsMessage(ready.counts));
   room.face = {
     stage: "select",
-    board: shuffle(people.flatMap((p) => [p.id, p.id])),
+    board: [],
     selected: [],
     removed: [],
+    boardNo: 1,
     order: [...room.teams].sort((a, b) => a.table - b.table).map((t) => t.id),
     turnIndex: 0,
     turnId: "",
@@ -375,8 +392,23 @@ function startFaceGame(room, now = Date.now()) {
     stopAfterTurn: false,
     history: []
   };
+  dealBoard(room, 1);
   room.phase = "face_play";
   startTurn(room, now);
+}
+function startFaceBoard2(room, now = Date.now()) {
+  const f = room.face;
+  if (room.phase !== "face_break" || !f) fail("1\uD310\uC774 \uB05D\uB09C \uB4A4 2\uD310\uC744 \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+  f.order = f.order.filter((id) => room.teams.some((t) => t.id === id));
+  if (!f.order.length) fail("\uCC38\uC5EC\uD55C \uD14C\uC774\uBE14\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  dealBoard(room, 2);
+  f.turnIndex = (f.turnIndex + 1) % f.order.length;
+  room.phase = "face_play";
+  startTurn(room, now);
+}
+function finishFaceEarly(room) {
+  if (room.phase !== "face_break") fail("1\uD310 \uC911\uAC04 \uC9D1\uACC4 \uD654\uBA74\uC5D0\uC11C\uB9CC \uB05D\uB0BC \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+  room.phase = "face_result";
 }
 function closeFaceStage(room, turnId, now = Date.now()) {
   const f = room.face;
@@ -418,6 +450,9 @@ function facePublic(room, myTeamId, isHost) {
   if (!f) return null;
   return {
     stage: f.stage,
+    boardNo: f.boardNo ?? 1,
+    boards: FACE_BOARDS.length,
+    cols: FACE_BOARDS[(f.boardNo ?? 1) - 1].cols,
     turnId: f.turnId,
     deadline: f.deadline,
     currentTeamId: f.stage === "done" ? null : f.order[f.turnIndex] ?? null,
@@ -439,7 +474,7 @@ function facePublic(room, myTeamId, isHost) {
     hostAnswers: isHost ? f.answers : null,
     result: f.result ? { ...f.result, answers: isHost ? f.result.answers : myTeamId && f.result.answers[myTeamId] !== void 0 ? { [myTeamId]: f.result.answers[myTeamId] } : {} } : null,
     // 찾은 사람 목록(이름 포함)은 라운드가 끝난 뒤에만 공개
-    history: isHost || f.stage === "done" ? f.history.map((h) => ({ ...h, photo: photoOf(h.personId) })) : []
+    history: isHost || f.stage === "done" ? f.history.map((h) => ({ ...h, board: h.board ?? 1, photo: photoOf(h.personId) })) : []
   };
 }
 function validateFacePeople(value, photoExists2) {
@@ -451,10 +486,11 @@ function validateFacePeople(value, photoExists2) {
     if (name.length > 30) fail(`${index + 1}\uBC88\uC9F8 \uC778\uBB3C\uC758 \uC774\uB984\uC774 \uB108\uBB34 \uAE41\uB2C8\uB2E4.`);
     const aliases = Array.isArray(item.aliases) ? item.aliases.filter((a) => typeof a === "string").map((a) => a.trim()).filter(Boolean).slice(0, 5) : [];
     const photo = typeof item.photo === "string" && photoExists2(item.photo) ? item.photo : null;
+    const board = item.board === 1 || item.board === 2 ? item.board : index < FACE_BOARDS[0].pairs ? 1 : 2;
     let id = typeof item.id === "string" && /^[a-z0-9-]{4,40}$/.test(item.id) ? item.id : uuid();
     if (seen.has(id)) id = uuid();
     seen.add(id);
-    return { id, name, aliases, photo };
+    return { id, name, aliases, photo, board };
   });
 }
 
@@ -758,6 +794,8 @@ var HOST_ACTIONS = /* @__PURE__ */ new Set([
   "start_face_game",
   "face_close",
   "face_stop",
+  "face_next_board",
+  "face_finish",
   "start_minority",
   "start_minority_practice",
   "start_minority_game",
@@ -778,6 +816,8 @@ var PROGRESS_ACTIONS = /* @__PURE__ */ new Set([
   "start_face",
   "start_face_game",
   "face_close",
+  "face_next_board",
+  "face_finish",
   "start_minority",
   "start_minority_practice",
   "start_minority_game",
@@ -937,6 +977,10 @@ async function POST(input) {
         return asHost((game) => closeFaceStage(game, body.turnId));
       case "face_stop":
         return asHost((game) => stopFaceAfterTurn(game));
+      case "face_next_board":
+        return asHost((game) => startFaceBoard2(game));
+      case "face_finish":
+        return asHost((game) => finishFaceEarly(game));
       case "face_pick":
         return asTeam((game, team) => facePick(game, team.id, body.index, body.turnId));
       case "face_answer":
@@ -1230,7 +1274,7 @@ app.post("/api/face/photo", bigJson, async (req, res) => {
 app.get("/api/face/export", async (req, res) => {
   if (!await isHostReq(req)) return res.status(403).json({ error: "\uC6B4\uC601\uC790 \uAD8C\uD55C\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." });
   const room = activeRoomData();
-  const people = (room?.settings.facePeople || []).map((p) => ({ name: p.name, aliases: p.aliases, photo: p.photo ? photoDataUrl(p.photo) : null }));
+  const people = (room?.settings.facePeople || []).map((p) => ({ name: p.name, aliases: p.aliases, board: p.board ?? 1, photo: p.photo ? photoDataUrl(p.photo) : null }));
   res.set("Content-Disposition", 'attachment; filename="face-cards.json"').json({ type: "all-in-macau-face-cards", version: 1, people });
 });
 app.post("/api/face/import", bigJson, async (req, res) => {
@@ -1238,7 +1282,7 @@ app.post("/api/face/import", bigJson, async (req, res) => {
   if (!await isHostReq(req)) return res.status(403).json({ error: "\uC6B4\uC601\uC790 \uAD8C\uD55C\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." });
   const list = req.body?.people;
   if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "\uC5BC\uAD74 \uCE74\uB4DC \uD30C\uC77C \uD615\uC2DD\uC774 \uC544\uB2D9\uB2C8\uB2E4." });
-  const people = list.map((p) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
+  const people = list.map((p) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
   const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
   res.status(r.status).json(r.body);
 });

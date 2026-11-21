@@ -56,11 +56,14 @@ const fakeJpeg = n => "data:image/jpeg;base64," + Buffer.concat([Buffer.from("ff
 const hostPost = async (url, body) => { const r = await fetch(BASE + url, { method: "POST", headers: { "Content-Type": "application/json", "x-host-token": hostToken }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
 
 test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
-  // 인물 3명 등록 (사진 업로드 → 이름/다른 표기)
+  // 인물 20명 등록: 1판 8명 + 2판 12명 (사진 업로드 → 이름/다른 표기)
   const ids = [];
-  for (const n of [1, 2, 3]) { const r = await hostPost("/api/face/photo", { data: fakeJpeg(n) }); assert.strictEqual(r.status, 200); ids.push(r.body.id); }
+  for (let n = 0; n < 20; n++) { const r = await hostPost("/api/face/photo", { data: fakeJpeg(n) }); assert.strictEqual(r.status, 200); ids.push(r.body.id); }
   assert.strictEqual((await hostPost("/api/face/photo", { data: "data:image/jpeg;base64,AAAA" })).status, 400);
-  const people = [{ name: "홍길동", aliases: ["Gildong"], photo: ids[0] }, { name: "김철수", aliases: [], photo: ids[1] }, { name: "이영희", aliases: [], photo: ids[2] }];
+  const people = ids.map((photo, i) => ({ name: i === 0 ? "홍길동" : `사람${i}`, aliases: i === 0 ? ["Gildong"] : [], photo, board: i < 8 ? 1 : 2 }));
+  // 인원이 모자라면 시작 불가
+  assert.strictEqual((await H("face_set_people", { facePeople: people.slice(0, 19) })).status, 200);
+  assert.strictEqual((await H("start_face")).status, 400);
   assert.strictEqual((await H("face_set_people", { facePeople: people })).status, 200);
   const photo = await fetch(BASE + "/photos/" + ids[0]);
   assert.strictEqual(photo.headers.get("content-type"), "image/jpeg");
@@ -73,7 +76,7 @@ test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
   // 참가자에게는 인물 이름/사진 목록이 가지 않음
   const lobbyView = await get({ "x-team-token": t[1] });
   assert.deepStrictEqual(lobbyView.state.settings.facePeople, []);
-  assert.strictEqual(lobbyView.state.settings.facePeopleCount, 3);
+  assert.strictEqual(lobbyView.state.settings.facePeopleCount, 20);
   assert.deepStrictEqual(lobbyView.state.rounds, { face: 1, minority: 2, roulette: 3 });
   assert.strictEqual((await H("start_face")).status, 200);
   assert.strictEqual((await H("start_face_game")).status, 200);
@@ -82,10 +85,19 @@ test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
   const byTable = { 1: t[1], 2: t[2], 3: t[3], 4: t[4] };
   const seen = {}; // index -> photo
   const earned = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  for (let guard = 0; guard < 60; guard++) {
+  let boardCols = [];
+  for (let guard = 0; guard < 300; guard++) {
     const host = (await get({ "x-host-token": hostToken })).state;
+    if (host.phase === "face_break") {
+      // 1판(8쌍, 4열) 끝 → 2판
+      assert.strictEqual(host.face.found, 8);
+      for (const k in seen) delete seen[k];
+      assert.strictEqual((await H("face_next_board")).status, 200);
+      continue;
+    }
     if (host.phase !== "face_play") break;
     const f = host.face;
+    if (!boardCols.includes(f.cols)) { boardCols.push(f.cols); assert.strictEqual(f.board.length, f.cols === 4 ? 16 : 24); }
     const cur = host.teams.find(x => x.id === f.currentTeamId);
     const token = byTable[cur.table];
     if (f.stage !== "select") { await H("face_close", { turnId: f.turnId }); continue; }
@@ -126,7 +138,8 @@ test("얼굴 카드 → 소수의 선택 → 룰렛 정산", async () => {
   }
   const faceDone = (await get({ "x-host-token": hostToken })).state;
   assert.strictEqual(faceDone.phase, "face_result");
-  assert.strictEqual(faceDone.face.found, 3);
+  assert.deepStrictEqual(boardCols, [4, 6]);
+  assert.strictEqual(faceDone.face.history.length, 20);
   const faceChips = Object.fromEntries(faceDone.teams.map(x => [x.table, x.chips]));
   assert.deepStrictEqual(faceChips, earned);
 

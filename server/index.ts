@@ -121,7 +121,7 @@ app.post("/api/face/photo", bigJson, async (req, res) => {
 app.get("/api/face/export", async (req, res) => {
   if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
   const room = activeRoomData();
-  const people = (room?.settings.facePeople || []).map(p => ({ name: p.name, aliases: p.aliases, photo: p.photo ? photoDataUrl(p.photo) : null }));
+  const people = (room?.settings.facePeople || []).map(p => ({ name: p.name, aliases: p.aliases, board: p.board ?? 1, photo: p.photo ? photoDataUrl(p.photo) : null }));
   res.set("Content-Disposition", 'attachment; filename="face-cards.json"').json({ type: "all-in-macau-face-cards", version: 1, people });
 });
 // 파일에서 불러오기 (대기실에서만)
@@ -130,7 +130,7 @@ app.post("/api/face/import", bigJson, async (req, res) => {
   if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
   const list = req.body?.people;
   if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "얼굴 카드 파일 형식이 아닙니다." });
-  const people = list.map((p: Record<string, unknown>) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
+  const people = list.map((p: Record<string, unknown>) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
   const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
   res.status(r.status).json(r.body);
 });

@@ -15,7 +15,7 @@ import { DOCUMENT_MINORITIES, DEFAULT_PRACTICE_QUESTION } from "../client/src/li
 import { countMinorityChoices, type MinorityOutcome } from "../client/src/lib/minority-result";
 import {
   defaultFaceSettings, readyPeople, reconcileFace, facePublic, startFaceTutorial, startFaceGame,
-  closeFaceStage, stopFaceAfterTurn, facePick, faceAnswer, validateFacePeople, FaceError, type FaceSettings, type FaceState,
+  closeFaceStage, stopFaceAfterTurn, startFaceBoard2, finishFaceEarly, facePick, faceAnswer, validateFacePeople, FaceError, type FaceSettings, type FaceState,
 } from "./face";
 import { photoExists } from "./photos";
 
@@ -23,7 +23,7 @@ import { photoExists } from "./photos";
 type Color = "red" | "black";
 type Phase =
   | "lobby"
-  | "face_tutorial" | "face_play" | "face_result"
+  | "face_tutorial" | "face_play" | "face_break" | "face_result"
   | "minority_tutorial" | "minority_play" | "minority_result" | "minority_summary"
   | "roulette_tutorial" | "roulette_betting" | "roulette_result"
   | "finished";
@@ -295,13 +295,13 @@ export async function GET(params: GetParams): Promise<ApiResult> {
 // ------------------------------------------------------------------ 동작
 const HOST_ACTIONS = new Set([
   "update_settings", "face_set_people", "exclude_table", "include_table", "remove_team",
-  "start_face", "start_face_game", "face_close", "face_stop",
+  "start_face", "start_face_game", "face_close", "face_stop", "face_next_board", "face_finish",
   "start_minority", "start_minority_practice", "start_minority_game", "reveal_minority", "next_minority",
   "minority_summary", "start_roulette", "start_roulette_game", "finish_no_chips", "spin", "next",
   "pause", "resume", "extend", "adjust_chips",
 ]);
 const PROGRESS_ACTIONS = new Set([
-  "start_face", "start_face_game", "face_close", "start_minority", "start_minority_practice", "start_minority_game",
+  "start_face", "start_face_game", "face_close", "face_next_board", "face_finish", "start_minority", "start_minority_practice", "start_minority_game",
   "reveal_minority", "next_minority", "minority_summary", "start_roulette", "start_roulette_game", "finish_no_chips", "spin", "next",
 ]);
 // skip_bet / undo_skip은 테이블(본인)과 운영자(teamId 지정) 모두 사용
@@ -445,6 +445,8 @@ export async function POST(input: unknown): Promise<ApiResult> {
       case "start_face_game": return asHost(game => startFaceGame(game));
       case "face_close": return asHost(game => closeFaceStage(game, body.turnId));
       case "face_stop": return asHost(game => stopFaceAfterTurn(game));
+      case "face_next_board": return asHost(game => startFaceBoard2(game));
+      case "face_finish": return asHost(game => finishFaceEarly(game));
       case "face_pick": return asTeam((game, team) => facePick(game, team.id, body.index, body.turnId));
       case "face_answer": return asTeam((game, team) => faceAnswer(game, team.id, body.answer, body.turnId));
 

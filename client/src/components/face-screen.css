@@ -25,8 +25,7 @@
 .face-next{font-size:14px;color:#c6ad92}
 
 /* 카드 판 */
-.face-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-@media(min-width:701px){.face-board.n20,.face-board.n24{grid-template-columns:repeat(6,minmax(0,1fr))}.face-board.n28,.face-board.n30,.face-board.n32,.face-board.n36,.face-board.n40{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.face-board{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:10px}
 .face-tile{position:relative;aspect-ratio:3/4;padding:0;border:0;background:transparent;perspective:900px;cursor:default}
 .face-tile:disabled{opacity:1;cursor:default}
 .face-tile.clickable{cursor:pointer}
@@ -76,25 +75,16 @@
 .face-ranking h2{font-size:26px;margin:0 0 16px}
 .face-ranking>div{display:flex;gap:18px;align-items:center;border-top:1px solid #76514a;padding:12px 0;font-size:18px}
 .face-ranking>div strong{flex:1}
-.face-ranking>div span{color:#dfbd7a}
 .face-ranking>div b{min-width:80px;text-align:right}
 
 /* 빔: 카드판과 이름 패널 나란히 */
-.projector .face-layout.face-naming{grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr)}
-.projector .face-layout:has(.face-ranking){grid-template-columns:minmax(0,1.3fr) minmax(300px,.7fr)}
 .projector .face-card{padding:28px}
-.projector .face-board{gap:10px;grid-template-columns:repeat(8,minmax(0,1fr))}
-.projector .face-board.n28,.projector .face-board.n30,.projector .face-board.n32,.projector .face-board.n36,.projector .face-board.n40{grid-template-columns:repeat(10,minmax(0,1fr))}
-.projector .face-naming .face-board{grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
-.projector .face-naming .face-board.n28,.projector .face-naming .face-board.n30,.projector .face-naming .face-board.n32,.projector .face-naming .face-board.n36,.projector .face-naming .face-board.n40{grid-template-columns:repeat(8,minmax(0,1fr))}
 .projector .face-turn{margin:12px 0 14px}
 .projector .face-name-photo{width:min(300px,100%)}
 
 /* 참가자(폰) */
 .participant .face-card{padding:18px}
 .participant .face-board{gap:7px}
-.participant .face-layout.face-naming{grid-template-columns:minmax(0,1fr)}
-.participant .face-layout.face-naming .face-name-card{order:-1}
 
 @media(max-width:700px){
   .face-steps{grid-template-columns:1fr;gap:8px}
@@ -112,3 +102,48 @@
   .face-ranking>div{font-size:15px;gap:8px}
 }
 .face-steps strong{flex:none;white-space:nowrap}
+
+/* ---- 판 고정 배치 (1판 4×4, 2판 6×4) ---- */
+/* 빔·운영자: 왼쪽 카드판, 오른쪽 이름 맞히기 또는 누적 칩 */
+.projector .face-play-grid,.projector .face-summary{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}
+.projector .face-board-card{display:flex;flex-direction:column}
+/* 카드 4줄이 화면 높이에 다 들어가도록 카드 크기를 높이 기준으로 계산 */
+.projector .face-board{gap:10px;width:min(100%,calc((100dvh - var(--face-reserve,330px)) / 4 * .75 * var(--cols,4) + (var(--cols,4) - 1) * 10px));margin:0 auto}
+/* 빔: 얼굴 카드 진행 중에는 큰 제목을 숨겨 카드 4줄이 한 화면에 들어오게 */
+.projector .game-shell:has(.face-play-grid){padding-top:14px;padding-bottom:6px}
+.projector .game-shell:has(.face-play-grid) .game-heading,.projector .game-shell:has(.face-play-grid)>footer{display:none}
+.projector .face-play-grid .face-card{padding:18px 22px}
+.projector .face-play-grid .face-turn{margin:8px 0 12px}
+.projector .face-play-grid .face-turn-badge{padding:6px 14px}
+.projector .face-play-grid{--face-reserve:290px}
+/* 빔 결과·중간 집계: 찾은 사람 사진을 한 줄 10명으로 */
+.projector .face-summary .face-found-grid{grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.projector .face-summary .face-found-grid figcaption{padding:5px;font-size:13px}
+.participant .face-found-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.participant .face-found-grid figcaption{padding:4px;font-size:12px}
+.projector .face-name-photo{width:min(240px,100%)}
+.host-face-live .face-play-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}
+.host-face-live .face-board{width:min(100%,calc(var(--cols,4) * 95px))}
+/* 폰 */
+.participant .face-board{gap:6px}
+.participant .face-board .face-back b{font-size:10px;left:4px;top:2px}
+.participant .face-board .face-back i{font-size:16px}
+.face-mychips{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1c1011;border:1px solid #65453c;font-size:13px;color:#c6ad92}
+.face-mychips strong{font-size:24px;color:#f1cf88}
+.face-mychips small{font-size:12px;margin-left:2px;color:#c6ad92}
+/* 누적 칩 */
+.face-ranking>div.now{background:#3a2420;margin:0 -10px;padding-left:10px;padding-right:10px}
+.face-rank{font:22px Georgia,serif;color:#dfbd7a;min-width:26px}
+.projector .face-ranking h2{font-size:22px}
+.projector .face-ranking>div{padding:9px 0;font-size:19px}
+/* 짝 성공 · 정답 메시지 */
+.face-banner{width:100%;padding:12px 14px;margin-bottom:14px;background:#39221d;border:1px solid #b18b57;color:#f8eddb;font-size:16px;line-height:1.5}
+.face-banner.hit{background:#4a2c24;border-color:#f1cf88;color:#f1cf88;font-weight:700}
+.face-banner b{color:#f1cf88}
+.face-mine span{display:block;margin-top:6px;font-size:14px;color:#dcc9bc}
+.face-gains{width:100%;display:flex;flex-direction:column;gap:6px}
+.face-gains>div{display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1c1011;border:1px solid #65453c}
+.face-gains>div.best{border-color:#f1cf88;background:#3a2420}
+.face-gains b{min-width:48px;font-size:18px}
+.face-gains span{flex:1;text-align:left;font-size:14px;color:#c6ad92}
+.face-gains strong{font-size:22px;color:#f1cf88}

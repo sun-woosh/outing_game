@@ -11,7 +11,7 @@ const TABLES = Number(process.argv[4]) || 14;
 const PASSWORD = process.env.HOST_PASSWORD || "2026";
 const QUESTIONS = Number(process.env.QUESTIONS) || 3;
 const SPINS = Number(process.env.SPINS) || 3;
-const FACES = process.env.FACES === undefined ? 8 : Number(process.env.FACES); // 얼굴 카드 인물 수 (0이면 건너뜀)
+const FACES = process.env.FACES === "0" ? 0 : 20; // 얼굴 카드 인물: 1판 8명 + 2판 12명 (FACES=0이면 건너뜀)
 const fakeJpeg = n => "data:image/jpeg;base64," + Buffer.concat([Buffer.from("ffd8ffe000104a464946", "hex"), Buffer.from("loadtest-" + n)]).toString("base64");
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -62,21 +62,22 @@ async function call(s, ev, body, record = true) {
   for (const s of phones) if (!reps.has(s.table)) reps.set(s.table, s);
 
   // 얼굴 카드: 대표 폰이 기억으로 카드를 고르고, 모든 폰이 이름을 제출
-  if (FACES >= 2) {
+  if (FACES) {
     const names = Array.from({ length: FACES }, (_, i) => "테스트" + i);
     const ids = [];
     for (let i = 0; i < FACES; i++) {
       const r = await fetch(URL + "/api/face/photo", { method: "POST", headers: { "Content-Type": "application/json", "x-host-token": hostToken }, body: JSON.stringify({ data: fakeJpeg(i) }) });
       ids.push((await r.json()).id);
     }
-    await H("face_set_people", { facePeople: names.map((name, i) => ({ name, aliases: [], photo: ids[i] })) });
+    await H("face_set_people", { facePeople: names.map((name, i) => ({ name, aliases: [], photo: ids[i], board: i < 8 ? 1 : 2 })) });
     await H("start_face");
     await H("start_face_game");
     const seen = {};
     const tf = Date.now();
     let turns = 0;
-    for (let guard = 0; guard < 400 && hs.phase !== "face_result"; guard++) {
+    for (let guard = 0; guard < 1000 && hs.phase !== "face_result"; guard++) {
       await sleep(60);
+      if (hs.phase === "face_break") { for (const k in seen) delete seen[k]; await H("face_next_board"); await sleep(300); continue; }
       const f = hs.face;
       if (!f || hs.phase !== "face_play") continue;
       f.board.forEach(c => { if (c.photo) seen[c.index] = c.photo; });
@@ -103,7 +104,7 @@ async function call(s, ev, body, record = true) {
       turns++;
       await sleep(150);
     }
-    console.log(`  얼굴 카드: ${turns}차례, ${hs.face.found}/${hs.face.pairs}쌍, ${Date.now() - tf}ms (실제 행사는 차례당 10~40초)`);
+    console.log(`  얼굴 카드: 2판 ${turns}차례, 찾은 사람 ${hs.face.history.length}명, ${Date.now() - tf}ms (실제 행사는 차례당 10~40초)`);
   }
 
   // 소수의 선택 (같은 테이블 여러 폰이 동시에 눌러도 됨)

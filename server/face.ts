@@ -5,11 +5,14 @@
  *  - 같은 사람이면: 뒤집은 테이블 +faceMatchBonus칩 → 모든 테이블이 그 사람 이름 맞히기 (정답 +faceNameBonus칩)
  *  - 다른 사람이면: 잠깐 보여 준 뒤 다시 덮고 다음 테이블 차례
  *  - 제한 시간 안에 카드를 고르지 않으면 남은 카드에서 무작위로 뒤집음
- *  - 모든 짝을 찾거나 운영자가 "이번 차례 후 종료"를 누르면 끝
+ *  - 2판으로 진행: 1판 8쌍(4×4), 2판 12쌍(6×4). 인물마다 몇 판에 나올지 정해 둠 (1판 8명 + 2판 12명)
+ *  - 한 판은 모든 짝을 찾거나 운영자가 "이번 차례 후 종료"를 누르면 끝 → 1판 뒤 중간 집계(face_break) → 2판
  */
 import { webcrypto as crypto } from "node:crypto";
 
-export type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null };
+export type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 };
+/** 판 구성 (고정): 1판 8쌍 4×4, 2판 12쌍 6×4 */
+export const FACE_BOARDS = [{ pairs: 8, cols: 4 }, { pairs: 12, cols: 6 }] as const;
 export type FaceSettings = {
   facePeople: FacePerson[];
   faceMatchBonus: number;
@@ -36,7 +39,8 @@ export type FaceState = {
   answers: Record<string, string>;
   result: FaceResult | null;
   stopAfterTurn: boolean;
-  history: { personId: string; name: string; attackerId: string; winners: string[] }[];
+  history: { personId: string; name: string; attackerId: string; winners: string[]; board: 1 | 2 }[];
+  boardNo: 1 | 2; // 지금 몇 판째
 };
 type FaceRoom = { phase: string; teams: FaceTeam[]; settings: FaceSettings; face?: FaceState | null; paused?: { remaining: number } | null };
 
@@ -44,8 +48,14 @@ class FaceError extends Error { constructor(message: string, public status = 400
 const fail = (message: string, status = 400): never => { throw new FaceError(message, status); };
 export { FaceError };
 
-export const readyPeople = (settings: FaceSettings) => (settings.facePeople || []).filter(p => p.name.trim() && p.photo);
-export const faceEnabled = (settings: FaceSettings) => readyPeople(settings).length >= 2;
+/** 이름·사진이 다 있는 인물 (board를 주면 그 판만) */
+export const readyPeople = (settings: FaceSettings, board?: 1 | 2) => (settings.facePeople || []).filter(p => p.name.trim() && p.photo && (!board || (p.board ?? 1) === board));
+/** 두 판 모두 정해진 인원이 등록됐는지 */
+export function faceBoardsReady(settings: FaceSettings) {
+  const counts = [readyPeople(settings, 1).length, readyPeople(settings, 2).length];
+  return { ok: counts[0] === FACE_BOARDS[0].pairs && counts[1] === FACE_BOARDS[1].pairs, counts };
+}
+const boardsMessage = (counts: number[]) => `얼굴 카드는 1판 ${FACE_BOARDS[0].pairs}명, 2판 ${FACE_BOARDS[1].pairs}명이 필요합니다. 지금 1판 ${counts[0]}명, 2판 ${counts[1]}명이 등록돼 있습니다.`;
 
 const normalize = (s: string) => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s.·\-_]/g, "");
 const nameMatches = (answer: string, person: FacePerson) => [person.name, ...(person.aliases || [])].some(n => n && normalize(n) === normalize(answer));
@@ -90,12 +100,23 @@ function nextTurn(room: FaceRoom, now: number) {
   startTurn(room, now);
 }
 
+/** 한 판이 끝남: 1판이면 중간 집계, 2판이면 결과 */
 function finishFace(room: FaceRoom) {
   const f = room.face!;
   f.stage = "done";
   f.deadline = null;
   f.selected = [];
-  room.phase = "face_result";
+  f.stopAfterTurn = false;
+  room.phase = f.boardNo === 1 ? "face_break" : "face_result";
+}
+function dealBoard(room: FaceRoom, board: 1 | 2) {
+  const people = readyPeople(room.settings, board);
+  const f = room.face!;
+  f.boardNo = board;
+  f.board = shuffle(people.flatMap(p => [p.id, p.id]));
+  f.selected = [];
+  f.removed = [];
+  f.stopAfterTurn = false;
 }
 
 function judge(room: FaceRoom, now: number) {
@@ -127,7 +148,7 @@ function gradeName(room: FaceRoom, now: number) {
   for (const teamId of winners) award(room, teamId, room.settings.faceNameBonus);
   f.removed.push(personId);
   f.result = { personId, name: person.name, attackerId: f.order[f.turnIndex], winners, answers: { ...f.answers } };
-  f.history.push({ personId, name: person.name, attackerId: f.result.attackerId, winners });
+  f.history.push({ personId, name: person.name, attackerId: f.result.attackerId, winners, board: f.boardNo });
   f.stage = "name_result";
   f.deadline = now + FACE_NAME_RESULT_MS;
 }
@@ -147,7 +168,8 @@ export function reconcileFace(room: FaceRoom, now = Date.now()): boolean {
 export function startFaceTutorial(room: FaceRoom) {
   if (room.phase !== "lobby") fail("대기실에서만 시작할 수 있습니다.");
   if (!room.teams.length) fail("참여한 테이블이 없습니다.");
-  if (!faceEnabled(room.settings)) fail("얼굴 카드에 쓸 사람을 2명 이상(이름과 사진) 등록해 주세요.");
+  const ready = faceBoardsReady(room.settings);
+  if (!ready.ok) fail(boardsMessage(ready.counts));
   for (const team of room.teams) { team.chips = 0; team.faceChange = 0; }
   room.face = null;
   room.phase = "face_tutorial";
@@ -156,15 +178,34 @@ export function startFaceTutorial(room: FaceRoom) {
 export function startFaceGame(room: FaceRoom, now = Date.now()) {
   if (room.phase !== "face_tutorial") fail("얼굴 카드 안내 화면에서 시작해 주세요.");
   if (!room.teams.length) fail("참여한 테이블이 없습니다.");
-  const people = readyPeople(room.settings);
-  if (people.length < 2) fail("얼굴 카드에 쓸 사람을 2명 이상 등록해 주세요.");
+  const ready = faceBoardsReady(room.settings);
+  if (!ready.ok) fail(boardsMessage(ready.counts));
   room.face = {
-    stage: "select", board: shuffle(people.flatMap(p => [p.id, p.id])), selected: [], removed: [],
+    stage: "select", board: [], selected: [], removed: [], boardNo: 1,
     order: [...room.teams].sort((a, b) => a.table - b.table).map(t => t.id), turnIndex: 0, turnId: "",
     deadline: null, answers: {}, result: null, stopAfterTurn: false, history: [],
   };
+  dealBoard(room, 1);
   room.phase = "face_play";
   startTurn(room, now);
+}
+
+/** 중간 집계 → 2판 시작. 1판 마지막 차례의 다음 테이블부터 이어서 */
+export function startFaceBoard2(room: FaceRoom, now = Date.now()) {
+  const f = room.face;
+  if (room.phase !== "face_break" || !f) fail("1판이 끝난 뒤 2판을 시작할 수 있습니다.");
+  f!.order = f!.order.filter(id => room.teams.some(t => t.id === id));
+  if (!f!.order.length) fail("참여한 테이블이 없습니다.");
+  dealBoard(room, 2);
+  f!.turnIndex = (f!.turnIndex + 1) % f!.order.length;
+  room.phase = "face_play";
+  startTurn(room, now);
+}
+
+/** 중간 집계에서 2판 없이 얼굴 카드 끝내기 */
+export function finishFaceEarly(room: FaceRoom) {
+  if (room.phase !== "face_break") fail("1판 중간 집계 화면에서만 끝낼 수 있습니다.");
+  room.phase = "face_result";
 }
 
 /** 운영자: 현재 단계를 바로 마감 (카드 선택 → 무작위, 이름 → 채점, 공개 화면 → 다음 차례) */
@@ -215,6 +256,9 @@ export function facePublic(room: FaceRoom, myTeamId: string | null, isHost: bool
   if (!f) return null;
   return {
     stage: f.stage,
+    boardNo: f.boardNo ?? 1,
+    boards: FACE_BOARDS.length,
+    cols: FACE_BOARDS[(f.boardNo ?? 1) - 1].cols,
     turnId: f.turnId,
     deadline: f.deadline,
     currentTeamId: f.stage === "done" ? null : f.order[f.turnIndex] ?? null,
@@ -236,7 +280,7 @@ export function facePublic(room: FaceRoom, myTeamId: string | null, isHost: bool
     hostAnswers: isHost ? f.answers : null,
     result: f.result ? { ...f.result, answers: isHost ? f.result.answers : (myTeamId && f.result.answers[myTeamId] !== undefined ? { [myTeamId]: f.result.answers[myTeamId] } : {}) } : null,
     // 찾은 사람 목록(이름 포함)은 라운드가 끝난 뒤에만 공개
-    history: isHost || f.stage === "done" ? f.history.map(h => ({ ...h, photo: photoOf(h.personId) })) : [],
+    history: isHost || f.stage === "done" ? f.history.map(h => ({ ...h, board: h.board ?? 1, photo: photoOf(h.personId) })) : [],
   };
 }
 
@@ -250,9 +294,11 @@ export function validateFacePeople(value: unknown, photoExists: (id: string) => 
     if (name.length > 30) fail(`${index + 1}번째 인물의 이름이 너무 깁니다.`);
     const aliases = Array.isArray(item.aliases) ? item.aliases.filter((a): a is string => typeof a === "string").map(a => a.trim()).filter(Boolean).slice(0, 5) : [];
     const photo = typeof item.photo === "string" && photoExists(item.photo) ? item.photo : null;
+    // 판 지정이 없으면(예전 백업 파일) 앞에서부터 1판 8명, 나머지 2판
+    const board: 1 | 2 = item.board === 1 || item.board === 2 ? item.board : index < FACE_BOARDS[0].pairs ? 1 : 2;
     let id = typeof item.id === "string" && /^[a-z0-9-]{4,40}$/.test(item.id) ? item.id : uuid();
     if (seen.has(id)) id = uuid();
     seen.add(id);
-    return { id, name, aliases, photo };
+    return { id, name, aliases, photo, board };
   });
 }
