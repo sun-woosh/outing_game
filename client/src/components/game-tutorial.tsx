@@ -1,11 +1,11 @@
 import { fmt, type Settings } from "../types";
 
-/** 룰렛 라운드 안내 화면 */
-export default function GameTutorial({ round, settings, view }: { round: number; settings: Settings; view: "team" | "beam" }) {
+/** 파이널 라운드(룰렛) 안내 화면 — 참가자에게는 이 화면에서 처음 공개 */
+export default function GameTutorial({ settings, view }: { settings: Settings; view: "team" | "beam" }) {
   return <section className={`tutorial-card card tutorial-${view}`} aria-label="룰렛 게임 설명">
     <div className="tutorial-header">
       <div>
-        <div className="card-kicker">HOW TO PLAY · ROUND {String(round).padStart(2, "0")}</div>
+        <div className="card-kicker">HOW TO PLAY · FINAL ROUND</div>
         <h2>색을 고르고, 칩을 걸어라!</h2>
         <p>빨강과 검정 중 하나를 고르고 베팅하거나, 이번 판을 건너뛸 수 있습니다.</p>
       </div>

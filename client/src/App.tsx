@@ -265,11 +265,11 @@ export default function App() {
   const myTeam = game?.teams.find(t => t.id === game.myTeamId);
   const phase = game?.phase ?? "lobby";
   const title = phase === "lobby" ? (view === "beam" ? "GET READY" : null)
-    : phase.startsWith("face_") ? `ROUND ${R.face ?? 1} · 얼굴 카드`
+    : phase.startsWith("face_") ? `ROUND ${R.face ?? 1} · 얼굴 카드 매치`
     : phase === "minority_summary" ? `ROUND ${R.minority} 종료 · 중간 순위`
     : phase.startsWith("minority_") ? (game?.minorityPractice ? "연습 문제" : `ROUND ${R.minority} · 소수의 선택`)
     : phase === "finished" ? "최종 결과"
-    : `ROUND ${R.roulette} ROULETTE`;
+    : "FINAL ROUND · ROULETTE";
   const subtitle = phase === "lobby" ? "테이블 참여를 기다리고 있어요."
     : phase === "roulette_tutorial" ? "게임 안내"
     : phase === "finished" || phase === "minority_summary" ? null
@@ -301,7 +301,7 @@ export default function App() {
           : phase === "minority_summary" ? <Standings game={game} view={view} mode="summary" />
           : phase === "finished" ? <Standings game={game} view={view} mode="final" />
           : phase.startsWith("minority_") ? <MinorityScreen game={game} view={view} busy={busy} seconds={minoritySeconds} onChoose={choice => asTeam("minority_choose", { choice, minorityRound: game.minorityRound })} />
-          : phase === "roulette_tutorial" ? <GameTutorial round={R.roulette} settings={game.settings} view={view} />
+          : phase === "roulette_tutorial" ? <GameTutorial settings={game.settings} view={view} />
           : phase === "lobby" ? <Lobby game={game} view={view} participantUrl={participantUrl} />
           : <RouletteStage game={game} view={view} busy={busy} resultHidden={resultHidden} seconds={betSeconds} spinOffsetMs={spinClock?.initialElapsed ?? 0}
               onBet={bet} onSkip={() => asTeam("skip_bet")} onUndoSkip={() => asTeam("undo_skip")} />}

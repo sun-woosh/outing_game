@@ -9,7 +9,7 @@
 .participant .intro{min-height:360px}
 .participant .intro h1{font-size:clamp(76px,9vw,112px);line-height:.88;margin:28px 0 18px}
 .participant .intro-copy{font-size:16px;line-height:1.7;color:#e2cbbc;max-width:400px}
-.participant .intro-wheel{width:min(230px,40%);right:0;bottom:0}
+
 .participant .entry,.participant .lobby-card,.participant .bet-panel,.participant .roulette-stage>.table,.participant .tutorial-card{border:1px solid #ad805a80;border-radius:18px;background:linear-gradient(155deg,#3b2021 0%,#291617 100%);box-shadow:0 16px 48px #08030340}
 .participant .entry{padding:38px}
 .participant .entry .card-kicker,.participant .card-kicker{font-size:11px;letter-spacing:.15em;color:#efcb87}
@@ -54,27 +54,21 @@
  .participant .shell,.participant .game-shell{width:calc(100% - 32px)}
  .participant .topbar{height:62px;padding:0 16px}.participant .brand-mark{width:34px;height:34px;border-radius:10px}.participant .brand{font-size:11px}
  .participant .landing{display:flex;flex-direction:column;align-items:stretch;gap:16px;padding:25px 0 28px}
- .participant .intro{order:0;min-height:0;padding:0 0 4px}.participant .intro h1{font-size:clamp(49px,14vw,68px);margin:16px 0 10px}.participant .intro-sub{font-size:10px}.participant .intro-copy{font-size:13px;margin:10px 0 0;max-width:none;line-height:1.6}.participant .intro-wheel{display:none}
+ .participant .intro{order:0;min-height:0;padding:0 0 4px}.participant .intro h1{font-size:clamp(49px,14vw,68px);margin:16px 0 10px}.participant .intro-sub{font-size:10px}.participant .intro-copy{font-size:13px;margin:10px 0 0;max-width:none;line-height:1.6}
  .participant .entry{order:1;max-width:none;padding:24px 22px}.participant .entry h2{font-size:25px}.participant .entry .muted{font-size:14px;margin-bottom:16px}.participant .entry label{margin-top:15px}.participant .entry input{height:56px}.participant .entry .primary{min-height:56px}.participant .how{order:2;display:grid;grid-template-columns:1fr;gap:9px;padding-top:16px}.participant .how div{width:auto}.participant .how p{width:auto;margin:4px 0 0}
  .participant .game-shell{padding:22px 0 28px}.participant .game-heading{margin-bottom:16px}.participant .game-heading h1{font-size:27px}.participant .game-heading p{font-size:12px}.participant .lobby-card,.participant .bet-panel,.participant .tutorial-card{padding:22px 20px}.participant .lobby-card h2{font-size:25px}
  .participant .minority-team .minority-card{padding:22px 18px}.participant .minority-question{font-size:23px}.participant .minority-team .minority-options button{min-height:72px;font-size:17px}.participant .minority-team .minority-options button span{width:36px;height:36px}.participant .minority-clock strong{font-size:27px}
  .participant .roulette-stage>.table{padding:18px}.participant .roulette-stage>.table .table-body .wheel-wrap{width:min(160px,45%)}.participant .wheel-caption strong{font-size:20px}.participant .bet-panel .color-button{min-height:70px}.participant .bet-panel label{font-size:15px}.participant .tutorial-header h2{font-size:26px}
 }
-@media(max-width:360px){.participant .shell,.participant .game-shell{width:calc(100% - 24px)}.participant .entry,.participant .minority-team .minority-card,.participant .bet-panel{padding-inline:16px}.participant .intro-wheel{width:68px}.participant .minority-team .minority-options button{font-size:16px;gap:9px}.participant .minority-options button>b{font-size:12px}}
+@media(max-width:360px){.participant .shell,.participant .game-shell{width:calc(100% - 24px)}.participant .entry,.participant .minority-team .minority-card,.participant .bet-panel{padding-inline:16px}.participant .minority-team .minority-options button{font-size:16px;gap:9px}.participant .minority-options button>b{font-size:12px}}
 .amount-input span{white-space:nowrap}
 .bet-panel .bet-clock{margin:0 0 6px;font-size:14px}
 .bet-panel .bet-clock strong{font-size:24px}
-/* 첫 화면: 오른쪽 아래 룰렛 장식이 제목·문구를 가리지 않게 */
-@media(min-width:961px){
-  .participant .intro-wheel{width:min(190px,30%)}
-  .participant .intro-copy,.participant .intro-sub{max-width:calc(100% - min(190px,30%) - 16px)}
-}
 /* 태블릿·작은 노트북(601~960px): 첫 화면을 한 줄로 쌓아 제목이 깨지지 않게 */
 @media(min-width:601px) and (max-width:960px){
   .participant .landing{display:flex;flex-direction:column;align-items:stretch;gap:24px;padding:40px 0 32px}
   .participant .intro{min-height:0}
   .participant .intro h1{font-size:clamp(72px,11vw,100px)}
   .participant .intro-copy{max-width:none}
-  .participant .intro-wheel{display:none}
   .participant .entry{max-width:none;width:100%}
 }

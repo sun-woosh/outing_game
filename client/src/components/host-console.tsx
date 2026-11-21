@@ -43,8 +43,8 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
       const people = readyPeople(game.settings);
       const intro = "테이블이 입장하면 게임 설명을 보여주세요. 모든 테이블이 입장하지 않아도 시작할 수 있습니다.";
       if (people >= 2) return <>
-        <p>{intro} 1라운드는 얼굴 카드({people}명 · 카드 {people * 2}장)입니다.</p>
-        {go("start_face", "1라운드 얼굴 카드 안내", noTeams)}
+        <p>{intro} 1라운드는 얼굴 카드 매치({people}명 · 카드 {people * 2}장)입니다.</p>
+        {go("start_face", "1라운드 얼굴 카드 매치 안내", noTeams)}
         <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드를 건너뛰고 소수의 선택부터 시작할까요?")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>
       </>;
       return <><p>{intro} (얼굴 카드를 하려면 게임 설정에서 인물을 2명 이상 등록하세요.)</p>{go("start_minority", "1라운드 안내 시작", noTeams)}</>;
@@ -78,7 +78,7 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
       return <><p>{R.minority}라운드를 마쳤습니다. 빔에 중간 순위를 보여 준 뒤 룰렛을 진행하세요.</p>{go("minority_summary", "중간 순위 발표")}
         <button className="host-btn ghost" disabled={busy} onClick={() => onAction("start_roulette")}>순위 없이 룰렛 안내로</button></>;
     case "minority_summary":
-      return <><p>빔에 지금까지의 순위와 라운드별 획득 칩이 나오고 있습니다.</p>{go("start_roulette", `${R.roulette}라운드 룰렛 안내`)}</>;
+      return <><p>빔에 지금까지의 순위와 라운드별 획득 칩이 나오고 있습니다.</p>{go("start_roulette", "파이널 라운드(룰렛) 공개")}</>;
     case "roulette_tutorial":
     case "roulette_betting": {
       if (game.teams.length > 0 && game.teams.every(t => t.chips === 0)) return <><p>모든 테이블의 칩이 0이어서 룰렛을 진행할 수 없습니다.</p>{go("finish_no_chips", "최종 결과 보기")}</>;
@@ -254,9 +254,9 @@ export default function HostConsole(props: Props) {
   const question = game.minorityPractice ? settings.minorityPracticeQuestion : settings.minorityQuestions[game.minorityRound - 1];
   const canManage = !["roulette_result", "finished"].includes(game.phase);
   const phaseLabel = game.phase === "roulette_result" && resultHidden ? "룰렛 회전 중" : PHASE_LABEL[game.phase];
-  const roundLine = game.phase.startsWith("face_") ? `${R.face}라운드 · 얼굴 카드${game.face ? ` · ${game.face.found} / ${game.face.pairs}쌍` : ""}`
+  const roundLine = game.phase.startsWith("face_") ? `${R.face}라운드 · 얼굴 카드 매치${game.face ? ` · ${game.face.found} / ${game.face.pairs}쌍` : ""}`
     : game.phase.startsWith("minority_") && game.phase !== "minority_tutorial" ? (game.minorityPractice ? `${R.minority}라운드 · 연습 질문` : `${R.minority}라운드 · ${game.minorityRound} / ${settings.minorityRounds}번째 질문`)
-    : game.phase.startsWith("roulette_") && game.phase !== "roulette_tutorial" ? `${R.roulette}라운드 · 룰렛 ${game.round} / ${settings.rouletteSpins}회` : null;
+    : game.phase.startsWith("roulette_") && game.phase !== "roulette_tutorial" ? `파이널 라운드 · 룰렛 ${game.round} / ${settings.rouletteSpins}회` : null;
   const TABS = [["play", "게임 진행"], ["scores", "점수 확인"], ["settings", "게임 설정"]] as const;
 
   return <main className="host-app host-simple">

@@ -77,7 +77,7 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
   return <div className={`face-layout face-${view} ${f.stage === "name" || f.stage === "name_result" ? "face-naming" : ""}`}>
     <section className="face-card face-board-card">
       <div className="face-top">
-        <span>{view === "team" ? "" : `ROUND ${game.rounds?.face ?? 1} · 얼굴 카드 · `}{f.found} / {f.pairs}쌍 찾음</span>
+        <span>{view === "team" ? "" : `ROUND ${game.rounds?.face ?? 1} · 얼굴 카드 매치 · `}{f.found} / {f.pairs}쌍 찾음</span>
         {seconds !== null && (f.stage === "select" || f.stage === "name") && <span className="face-clock">남은 시간 <strong>{seconds}</strong>초</span>}
       </div>
       <div className="face-turn">
