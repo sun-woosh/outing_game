@@ -24,13 +24,15 @@ type Props = {
 };
 
 const PHASE_LABEL: Record<string, string> = {
-  lobby: "참여 대기", face_tutorial: "얼굴 카드 안내", face_play: "얼굴 카드 진행 중", face_result: "얼굴 카드 결과",
+  lobby: "참여 대기", face_tutorial: "얼굴 카드 매치 안내", face_play: "얼굴 카드 매치 진행 중", face_break: "얼굴 카드 1판 종료 · 중간 집계", face_result: "얼굴 카드 매치 결과",
   minority_tutorial: "소수의 선택 안내", minority_play: "선택 진행 중", minority_result: "선택 결과", minority_summary: "중간 순위 발표",
   roulette_tutorial: "룰렛 안내", roulette_betting: "룰렛 베팅", roulette_result: "룰렛 결과", finished: "게임 종료",
 };
 const FACE_STAGE: Record<string, string> = { select: "카드 고르는 중", mismatch: "다른 사람 · 다음 차례 준비", name: "이름 맞히는 중", name_result: "이름 정답 공개", done: "종료" };
 const blankQuestion = (): Question => ({ question: "", options: ["", ""] });
-const readyPeople = (settings: Settings) => (settings.facePeople || []).filter(p => p.name && p.photo).length;
+const readyPeople = (settings: Settings, board: 1 | 2) => (settings.facePeople || []).filter(p => p.name && p.photo && (p.board ?? 1) === board).length;
+/** 얼굴 카드 판 구성 (고정): 1판 8쌍, 2판 12쌍 */
+const FACE_NEED = [8, 12];
 const tables = (teams: Team[]) => teams.map(t => `${t.table}번`).join(", ");
 
 /** 지금 단계에서 눌러야 할 버튼 */
@@ -40,17 +42,14 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
   const noTeams = !game.teams.length;
   switch (game.phase) {
     case "lobby": {
-      const people = readyPeople(game.settings);
+      const counts = [readyPeople(game.settings, 1), readyPeople(game.settings, 2)];
+      const ready = counts[0] === FACE_NEED[0] && counts[1] === FACE_NEED[1];
       const intro = "테이블이 입장하면 게임 설명을 보여주세요. 모든 테이블이 입장하지 않아도 시작할 수 있습니다.";
-      if (people >= 2) return <>
-        <p>{intro} 1라운드는 얼굴 카드 매치({people}명 · 카드 {people * 2}장)입니다.</p>
-        {go("start_face", "1라운드 얼굴 카드 매치 안내", noTeams)}
-        <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드를 건너뛰고 소수의 선택부터 시작할까요?")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>
-      </>;
+      const skip = <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드 매치를 건너뛰고 소수의 선택부터 시작할까요? 소수의 선택이 1라운드가 됩니다.")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>;
+      if (ready) return <><p>{intro} 1라운드는 얼굴 카드 매치(1판 {FACE_NEED[0]}쌍 → 2판 {FACE_NEED[1]}쌍)입니다.</p>{go("start_face", "1라운드 얼굴 카드 매치 안내", noTeams)}{skip}</>;
       return <>
-        <p className="host-warning">⚠ 얼굴 카드 매치 사진이 등록되지 않았습니다. <b>게임 설정 → 얼굴 카드 인물</b>에서 2명 이상 등록하거나 백업 파일을 불러오세요.</p>
-        {go("start_face", "1라운드 얼굴 카드 매치 안내", true)}
-        <button className="host-btn ghost" disabled={busy || noTeams} onClick={() => { if (window.confirm("얼굴 카드를 건너뛰고 소수의 선택부터 시작할까요? 소수의 선택이 1라운드가 됩니다.")) onAction("start_minority"); }}>얼굴 카드 없이 시작</button>
+        <p className="host-warning">⚠ 얼굴 카드 매치 사진이 부족합니다. 1판 <b>{counts[0]} / {FACE_NEED[0]}명</b>, 2판 <b>{counts[1]} / {FACE_NEED[1]}명</b>. <b>게임 설정 → 얼굴 카드 인물</b>에서 등록하거나 백업 파일을 불러오세요.</p>
+        {go("start_face", "1라운드 얼굴 카드 매치 안내", true)}{skip}
       </>;
     }
     case "face_tutorial":
@@ -60,11 +59,15 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
       if (!f) return null;
       const cur = game.teams.find(t => t.id === f.currentTeamId);
       return <>
-        <p>{cur ? `${cur.table}번 테이블 차례 · ` : ""}{FACE_STAGE[f.stage]} · {f.found} / {f.pairs}쌍 찾음. 시간이 지나면 자동으로 넘어갑니다.</p>
+        <p>{f.boardNo}판 · {cur ? `${cur.table}번 테이블 차례 · ` : ""}{FACE_STAGE[f.stage]} · {f.found} / {f.pairs}쌍 찾음. 시간이 지나면 자동으로 넘어갑니다.</p>
         {go("face_close", f.stage === "select" ? "시간 마감 (카드 자동 선택)" : f.stage === "name" ? "이름 제출 마감하고 채점" : "다음 차례로")}
-        <button className="host-btn ghost" disabled={busy} onClick={() => onAction("face_stop")}>{f.stopAfterTurn ? "종료 예약 취소" : "이번 차례 끝나면 얼굴 카드 종료"}</button>
+        <button className="host-btn ghost" disabled={busy} onClick={() => onAction("face_stop")}>{f.stopAfterTurn ? "종료 예약 취소" : `이번 차례 끝나면 ${f.boardNo}판 종료`}</button>
       </>;
     }
+    case "face_break":
+      return <><p>1판이 끝났습니다. 빔에 1판에서 찾은 사람과 테이블별 누적 칩이 나오고 있습니다. 2판은 1판 마지막 차례의 다음 테이블부터 시작합니다.</p>
+        {go("face_next_board", `2판 시작 (${FACE_NEED[1]}쌍)`)}
+        <button className="host-btn ghost" disabled={busy} onClick={() => { if (window.confirm("2판 없이 얼굴 카드 매치를 끝낼까요?")) onAction("face_finish"); }}>2판 없이 끝내기</button></>;
     case "face_result":
       return <><p>얼굴 카드가 끝났습니다. 얻은 칩은 그대로 이어집니다.</p>{go("start_minority", `${R.minority}라운드 소수의 선택 안내`)}</>;
     case "minority_tutorial":
@@ -299,7 +302,7 @@ export default function HostConsole(props: Props) {
           {(game.phase === "finished" || game.phase === "minority_summary") && <section className="host-panel"><h2>{game.phase === "finished" ? "최종 순위" : "중간 순위"}</h2>
             <div className="host-score-list">{sorted.map(t => <div className="host-score-row" key={t.id}><span className="host-score-rank">{sorted.findIndex(o => o.chips === t.chips) + 1}위</span><strong>{t.table}번 테이블</strong><b>{fmt(t.chips)}칩</b></div>)}</div>
           </section>}
-          {(game.phase === "face_play" || game.phase === "face_result") && <section className="host-panel host-face-live"><FaceScreen game={game} view="host" busy={busy} seconds={faceSeconds} /></section>}
+          {(game.phase === "face_play" || game.phase === "face_break" || game.phase === "face_result") && <section className="host-panel host-face-live"><FaceScreen game={game} view="host" busy={busy} seconds={faceSeconds} /></section>}
           {game.phase === "minority_result" && <section className="host-panel host-simple-results">
             <h2>{game.minorityPractice ? "연습 결과 · 실제 칩에 미반영" : "이번 질문 결과"}</h2>
             <div className="host-score-list">{sorted.map(t => <div className="host-score-row" key={t.id}><strong>{t.table}번 테이블</strong><span>{t.minoritySubmitted ? "선택 완료" : "미선택"}</span><span>이번 질문 {(t.minorityChange ?? 0) > 0 ? "+" : ""}{fmt(t.minorityChange)}칩</span><b>{fmt(t.chips)}칩</b></div>)}</div>

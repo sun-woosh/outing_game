@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-type FacePersonDraft = { id?: string; name: string; aliases: string; photo: string | null };
-type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null };
-type Props = { people: FacePerson[]; hostToken: string; locked: boolean; busy: boolean; onSave: (people: { id?: string; name: string; aliases: string[]; photo: string | null }[]) => void; onImported: () => void };
+type FacePersonDraft = { id?: string; name: string; aliases: string; photo: string | null; board: 1 | 2 };
+/** 판 구성 (고정): 1판 8명(8쌍), 2판 12명(12쌍) */
+const NEED = { 1: 8, 2: 12 } as const;
+type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 };
+type Props = { people: FacePerson[]; hostToken: string; locked: boolean; busy: boolean; onSave: (people: { id?: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 }[]) => void; onImported: () => void };
 
-const toDraft = (p: FacePerson): FacePersonDraft => ({ id: p.id, name: p.name, aliases: (p.aliases || []).join(", "), photo: p.photo });
+const toDraft = (p: FacePerson): FacePersonDraft => ({ id: p.id, name: p.name, aliases: (p.aliases || []).join(", "), photo: p.photo, board: p.board ?? 1 });
 
 /** 사진을 긴 변 600px JPEG로 줄여 data URL로 (업로드 용량·전송량 절약) */
 async function resizeToDataUrl(file: File): Promise<string> {
@@ -45,11 +47,13 @@ export default function HostFaceEditor({ people, hostToken, locked, busy, onSave
   const addPhotos = (files: FileList | null) => run(async () => {
     if (!files?.length) return;
     const added: FacePersonDraft[] = [];
+    // 1판이 8명 찰 때까지 1판, 그다음부터 2판에 넣음
+    let board1 = draft.filter(p => p.board === 1).length;
     for (const file of Array.from(files).slice(0, 40)) {
       setStatus(`사진 올리는 중… ${added.length + 1} / ${files.length}`);
       const photo = await upload(file);
       // 파일 이름을 그대로 이름으로 사용 (예: 홍길동.jpg → 홍길동)
-      added.push({ name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 30), aliases: "", photo });
+      added.push({ name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 30), aliases: "", photo, board: board1 < NEED[1] ? (board1++, 1) : 2 });
     }
     setDraft(prev => [...prev, ...added].slice(0, 40));
     setStatus(`${added.length}명을 추가했습니다. 이름을 확인하고 저장하세요.`);
@@ -81,18 +85,24 @@ export default function HostFaceEditor({ people, hostToken, locked, busy, onSave
     onImported();
   });
 
-  const ready = draft.filter(p => p.name.trim() && p.photo).length;
+  const countOf = (board: 1 | 2) => draft.filter(p => p.board === board && p.name.trim() && p.photo).length;
+  const counts = { 1: countOf(1), 2: countOf(2) };
   const save = () => {
     if (draft.some(p => !p.name.trim() || !p.photo)) { setStatus("이름과 사진이 모두 있어야 합니다. 비어 있는 사람을 채우거나 삭제해 주세요."); return; }
-    onSave(draft.map(p => ({ id: p.id, name: p.name.trim(), aliases: p.aliases.split(",").map(a => a.trim()).filter(Boolean), photo: p.photo })));
+    if (counts[1] !== NEED[1] || counts[2] !== NEED[2]) {
+      if (!window.confirm(`1판 ${counts[1]}/${NEED[1]}명, 2판 ${counts[2]}/${NEED[2]}명입니다. 인원이 맞지 않으면 얼굴 카드 매치를 시작할 수 없습니다. 그래도 저장할까요?`)) return;
+    }
+    // 1판 → 2판 순서로 정렬해서 저장
+    const sorted = [...draft].sort((a, b) => a.board - b.board);
+    onSave(sorted.map(p => ({ id: p.id, name: p.name.trim(), aliases: p.aliases.split(",").map(a => a.trim()).filter(Boolean), photo: p.photo, board: p.board })));
     setStatus("");
   };
   const disabled = locked || busy || working;
 
   return <section className="host-panel host-face-editor">
-    <div className="host-panel-head"><h2>얼굴 카드 인물</h2><span className="host-subtle">{ready}명 · 카드 {ready * 2}장</span></div>
-    <p>사진을 여러 장 한 번에 고르면 <b>파일 이름이 이름</b>으로 들어갑니다 (예: <code>홍길동.jpg</code>). 2명 이상 등록하면 얼굴 카드가 1라운드로 진행되고, 비워 두면 얼굴 카드 없이 시작합니다.</p>
-    <p className="host-subtle">추천: 테이블 10개 기준 8~12명 (약 10~15분). 다른 표기(영문 이름, 별명)는 쉼표로 적으면 정답으로 인정합니다.</p>
+    <div className="host-panel-head"><h2>얼굴 카드 인물</h2><span className={`host-subtle ${counts[1] === NEED[1] && counts[2] === NEED[2] ? "" : "host-count-warn"}`}>1판 {counts[1]} / {NEED[1]}명 · 2판 {counts[2]} / {NEED[2]}명</span></div>
+    <p>사진을 여러 장 한 번에 고르면 <b>파일 이름이 이름</b>으로 들어갑니다 (예: <code>홍길동.jpg</code>). 얼굴 카드 매치는 <b>1판 {NEED[1]}명(4×4) → 2판 {NEED[2]}명(6×4)</b>으로 진행하니 <b>총 {NEED[1] + NEED[2]}명</b>이 필요합니다. 한꺼번에 올리면 앞의 {NEED[1]}명은 1판, 나머지는 2판에 들어가고, 사람마다 판을 바꿀 수 있습니다.</p>
+    <p className="host-subtle">다른 표기(영문 이름, 별명)는 쉼표로 적으면 정답으로 인정합니다. 띄어쓰기·대소문자는 무시합니다.</p>
     <div className="host-face-actions">
       <button type="button" className="host-btn ghost" disabled={disabled} onClick={() => bulkRef.current?.click()}>+ 사진 여러 장 추가</button>
       <button type="button" className="host-btn ghost" disabled={busy || working || !people.length} onClick={exportFile}>파일로 내려받기 (백업)</button>
@@ -105,6 +115,7 @@ export default function HostFaceEditor({ people, hostToken, locked, busy, onSave
       {draft.map((p, i) => <div className="host-face-row" key={p.id ?? `new-${i}`}>
         <label className="host-face-photo" title="사진 바꾸기">{p.photo ? <img src={`/photos/${p.photo}`} alt="" /> : <span>사진 없음</span>}<input type="file" accept="image/*" hidden disabled={disabled} onChange={e => { void replacePhoto(i, e.target.files?.[0]); e.target.value = ""; }} /></label>
         <div className="host-face-fields">
+          <label>판<select value={p.board} disabled={disabled} onChange={e => setDraft(prev => prev.map((q, j) => j === i ? { ...q, board: Number(e.target.value) as 1 | 2 } : q))}><option value={1}>1판</option><option value={2}>2판</option></select></label>
           <label>이름<input type="text" maxLength={30} value={p.name} disabled={disabled} onChange={e => setDraft(prev => prev.map((q, j) => j === i ? { ...q, name: e.target.value } : q))} /></label>
           <label>다른 표기 (쉼표로 구분)<input type="text" maxLength={120} value={p.aliases} disabled={disabled} placeholder="예: Gildong Hong, 길동" onChange={e => setDraft(prev => prev.map((q, j) => j === i ? { ...q, aliases: e.target.value } : q))} /></label>
         </div>

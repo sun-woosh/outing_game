@@ -30,3 +30,7 @@
 .host-adjust-log b{color:#f8eddb}
 @media(max-width:800px){.host-adjust-form{grid-template-columns:1fr 1fr}}
 .host-warning{background:#5c2a1c;border:1px solid #c9794a;color:#ffe0c8;padding:12px 14px;line-height:1.6}
+.host-face-fields{grid-template-columns:90px 1fr 1.4fr}
+.host-face-fields select{background:#291516;border:1px solid #76514a;color:#f8eddb;padding:8px 6px;font-size:15px}
+.host-count-warn{color:#ffb38a}
+@media(max-width:800px){.host-face-fields{grid-template-columns:1fr}}

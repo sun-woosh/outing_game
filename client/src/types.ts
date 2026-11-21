@@ -4,13 +4,13 @@ import type { FaceView } from "./components/face-screen";
 export type Color = "red" | "black";
 export type Phase =
   | "lobby"
-  | "face_tutorial" | "face_play" | "face_result"
+  | "face_tutorial" | "face_play" | "face_break" | "face_result"
   | "minority_tutorial" | "minority_play" | "minority_result" | "minority_summary"
   | "roulette_tutorial" | "roulette_betting" | "roulette_result"
   | "finished";
 
 export type Question = { question: string; options: string[] };
-export type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null };
+export type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 };
 
 export type Settings = {
   tableCount: number;
@@ -65,7 +65,7 @@ export type Game = {
 };
 
 export type HostAction =
-  | "start_face" | "start_face_game" | "face_close" | "face_stop"
+  | "start_face" | "start_face_game" | "face_close" | "face_stop" | "face_next_board" | "face_finish"
   | "start_minority" | "start_minority_practice" | "start_minority_game" | "reveal_minority" | "next_minority" | "minority_summary"
   | "pause" | "resume" | "extend"
   | "start_roulette" | "start_roulette_game" | "finish_no_chips" | "spin" | "next";
