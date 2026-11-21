@@ -5,9 +5,8 @@ import type { Game } from "../types";
 export default function Lobby({ game, view, participantUrl }: { game: Game; view: "team" | "beam"; participantUrl: string }) {
   const R = game.rounds;
   const rounds: [number, string, string][] = [
-    ...(R.face ? [[R.face, "얼굴 카드", "같은 사람 사진 두 장 찾고 이름 맞히기"] as [number, string, string]] : []),
+    ...(R.face ? [[R.face, "얼굴 카드 매치", "같은 사람 사진 두 장 찾고 이름 맞히기"] as [number, string, string]] : []),
     [R.minority, "소수의 선택", "가장 적은 테이블이 고른 답이 승리"],
-    [R.roulette, "룰렛", "모은 칩을 빨강·검정에 걸어 두 배로"],
   ];
   const numbers = Array.from({ length: game.settings.tableCount }, (_, i) => i + 1).filter(n => !game.excludedTables.includes(n));
   return <div className={`game-grid ${view === "beam" ? "beam-lobby-grid" : ""}`}>

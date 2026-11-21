@@ -15,14 +15,14 @@ export default function Standings({ game, view, mode }: { game: Game; view: "tea
   const showAdjust = game.teams.some(t => (t.adjustTotal ?? 0) !== 0);
   const final = mode === "final";
   const columns: [string, (b: ReturnType<typeof chipBreakdown>) => number][] = [
-    ...(showFace ? [["얼굴 카드", b => b.face] as [string, (b: ReturnType<typeof chipBreakdown>) => number]] : []),
+    ...(showFace ? [["얼굴 카드 매치", b => b.face] as [string, (b: ReturnType<typeof chipBreakdown>) => number]] : []),
     ["소수의 선택", b => b.minority],
     ...(final ? [["룰렛", b => b.roulette] as [string, (b: ReturnType<typeof chipBreakdown>) => number]] : []),
     ...(showAdjust ? [["조정", b => b.adjust] as [string, (b: ReturnType<typeof chipBreakdown>) => number]] : []),
   ];
   const kicker = final ? "FINAL RESULT" : `ROUND ${R.minority} COMPLETE`;
   const title = final ? "최종 순위" : "중간 순위";
-  const lead = final ? "모든 게임이 끝났습니다. 수고하셨습니다!" : `다음은 ROUND ${R.roulette} 룰렛! 모은 칩을 걸어 순위를 뒤집을 수 있습니다.`;
+  const lead = final ? "모든 게임이 끝났습니다. 수고하셨습니다!" : "다음은 마지막 라운드입니다. 지금까지 모은 칩이 마지막 승부의 밑천이 됩니다!";
 
   if (view === "team") {
     const b = mine ? chipBreakdown(mine.team) : null;

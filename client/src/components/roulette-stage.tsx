@@ -19,7 +19,7 @@ export default function RouletteStage({ game, view, busy, resultHidden, spinOffs
         <span className="status"><i /> {resultHidden ? "룰렛 회전 중" : betting ? "베팅 진행 중" : game.phase === "roulette_result" ? "결과 발표" : "게임 종료"}</span>
         {betting && seconds !== null ? <span className={`bet-clock ${seconds <= 10 ? "urgent" : ""}`}>베팅 마감까지 <strong>{seconds}</strong>초</span>
           : betting && !betOpen ? <span className="bet-clock">베팅 마감 · 곧 룰렛이 돌아갑니다</span>
-          : <span className="round-tag">ROUND {game.rounds.roulette} · {game.round} / {game.settings.rouletteSpins}</span>}
+          : <span className="round-tag">FINAL ROUND · {game.round} / {game.settings.rouletteSpins}</span>}
       </div>
       <div className="table-body">
         <Wheel result={game.result} spinning={resultHidden} spinOffsetMs={spinOffsetMs} />

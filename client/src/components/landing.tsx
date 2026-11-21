@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import Wheel from "./roulette-wheel";
 
 type Props = {
   mode: "team" | "host"; hostAuth: boolean; busy: boolean; roomReady: boolean; activeKnown: boolean;
@@ -17,8 +16,7 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
       <div className="eyebrow"><span /> 2026 DT OUTING <span /></div>
       <h1>ALL IN<br /><em>MACAU</em></h1>
       <p className="intro-sub">2026 DT OUTING <span>✦</span> TEAM GAME</p>
-      <p className="intro-copy">얼굴 카드와 소수의 선택으로 칩을 모으고, 룰렛에 베팅하세요.<br />단 한 번의 선택으로 순위가 뒤집힙니다.</p>
-      <div className="intro-wheel"><Wheel /></div>
+      <p className="intro-copy">테이블이 함께 상의하고, 함께 칩을 모으세요.<br />단 한 번의 선택으로 순위가 뒤집힙니다.</p>
     </section>
     <section className="entry card">
       <div className="card-kicker">WELCOME TO THE TABLE</div>
@@ -39,9 +37,8 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
       {message}
     </section>
     <section className="how">
-      <div><b>01</b><span>얼굴 카드·소수의 선택으로 칩 획득</span></div>
-      <div><b>02</b><span>룰렛에서 색을 골라 베팅</span></div>
-      <div><b>03</b><span>맞히면 건 칩의 2배</span></div>
+      <div><b>01</b><span>얼굴 카드 매치</span></div>
+      <div><b>02</b><span>소수의 선택</span></div>
       <p>마지막에 칩이 가장 많은 테이블이 승리합니다.</p>
     </section>
   </div>;
