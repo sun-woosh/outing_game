@@ -52,6 +52,8 @@ export type Game = {
   minorityRound: number;
   minorityPractice: boolean;
   minorityDeadline: number | null;
+  /** 소수의 선택 결과 화면에서 다음 문제가 자동으로 시작되는 시각 */
+  minorityNextAt?: number | null;
   minorityResult: MinorityResult | null;
   paused: { remaining: number } | null;
   adjustments: { table: number; delta: number; reason: string; at: number }[];

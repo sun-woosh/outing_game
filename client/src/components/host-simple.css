@@ -34,3 +34,11 @@
 .host-face-fields select{background:#291516;border:1px solid #76514a;color:#f8eddb;padding:8px 6px;font-size:15px}
 .host-count-warn{color:#ffb38a}
 @media(max-width:800px){.host-face-fields{grid-template-columns:1fr}}
+
+/* 게임 설정 안의 탭 (칩·시간 / 얼굴 사진 / 소수의 선택 문제) */
+.host-app [hidden]{display:none!important}
+.host-subtabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;margin:18px 0 14px;padding:8px 0;background:#1a0c0d;border-bottom:1px solid #66443b88;overflow-x:auto}
+.host-subtabs button{flex:none;min-height:46px;padding:0 20px;border:1px solid #735046;background:#241213;color:#cdb5a6;font-size:14px;font-weight:800;white-space:nowrap}
+.host-subtabs button:hover{border-color:var(--gold);color:var(--cream)}
+.host-subtabs button.active{background:var(--gold);border-color:var(--gold);color:#26140e}
+.host-settings .host-settings-save{margin-top:18px}

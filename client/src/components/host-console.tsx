@@ -82,7 +82,7 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
     }
     case "minority_result":
       if (game.minorityPractice) return <><p>연습이 끝났습니다. 실제 칩은 변하지 않았습니다.</p>{go("start_minority_game", "본게임 시작")}</>;
-      if (game.minorityRound < game.settings.minorityRounds) return <><p>결과를 확인한 뒤 다음 질문을 시작하세요.</p>{go("next_minority", "다음 질문 시작")}</>;
+      if (game.minorityRound < game.settings.minorityRounds) return <><p>{game.paused ? "일시정지 중입니다. 재개하면 남은 시간 뒤에 다음 질문이 시작됩니다." : "10초 뒤 자동으로 다음 질문이 시작됩니다. 결과 설명이 길어지면 일시정지하거나 +15초를 누르세요."}</p>{go("next_minority", "바로 다음 질문 시작")}</>;
       return <><p>{R.minority}라운드를 마쳤습니다. 빔에 중간 순위를 보여 준 뒤 룰렛을 진행하세요.</p>{go("minority_summary", "중간 순위 발표")}
         <button className="host-btn ghost" disabled={busy} onClick={() => onAction("start_roulette")}>순위 없이 룰렛 안내로</button></>;
     case "minority_summary":
@@ -109,10 +109,11 @@ function PhaseAction({ game, busy, resultHidden, hostCooldown, onAction, onNewGa
 
 /** 타이머가 돌아가는 단계에서: 일시정지 / 재개 / +15초 */
 function TimerControls({ game, busy, seconds, onAction }: { game: Game; busy: boolean; seconds: number | null; onAction: (a: HostAction) => void }) {
-  const running = (game.phase === "face_play" && game.face?.stage !== "done") || game.phase === "minority_play" || game.phase === "roulette_betting";
+  const autoNext = game.phase === "minority_result" && !game.minorityPractice && game.minorityRound < game.settings.minorityRounds;
+  const running = (game.phase === "face_play" && game.face?.stage !== "done") || game.phase === "minority_play" || autoNext || game.phase === "roulette_betting";
   if (!running) return null;
   return <div className="host-timer">
-    <span>{game.paused ? "⏸ 일시정지됨" : seconds !== null ? <>남은 시간 <b>{seconds}</b>초</> : game.phase === "roulette_betting" ? "베팅 마감됨" : ""}</span>
+    <span>{game.paused ? "⏸ 일시정지됨" : seconds !== null ? <>{autoNext ? "다음 질문까지" : "남은 시간"} <b>{seconds}</b>초</> : game.phase === "roulette_betting" ? "베팅 마감됨" : ""}</span>
     {game.paused
       ? <button className="host-btn ghost" disabled={busy} onClick={() => onAction("resume")}>▶ 재개</button>
       : <button className="host-btn ghost" disabled={busy || seconds === null} onClick={() => onAction("pause")}>⏸ 일시정지</button>}
@@ -195,7 +196,8 @@ const NUMBER_FIELDS = [
 ] as const;
 type NumberKey = typeof NUMBER_FIELDS[number][0];
 
-function SettingsPanel({ game, busy, onSettings }: Pick<Props, "game" | "busy" | "onSettings">) {
+/** 게임 설정 → "칩·시간" 탭과 "소수의 선택 문제" 탭. 두 탭이 같은 초안을 쓰므로 탭을 옮겨도 입력이 유지됨 */
+function SettingsPanel({ game, busy, onSettings, show }: Pick<Props, "game" | "busy" | "onSettings"> & { show: "rules" | "questions" | null }) {
   const [draft, setDraft] = useState<Settings>(game.settings);
   const [error, setError] = useState("");
   const settingsKey = JSON.stringify(game.settings);
@@ -223,39 +225,55 @@ function SettingsPanel({ game, busy, onSettings }: Pick<Props, "game" | "busy" |
     onSettings({ ...numbers, minorityRounds: draft.minorityQuestions.length, minorityPracticeQuestion: clean(draft.minorityPracticeQuestion), minorityQuestions: draft.minorityQuestions.map(clean) });
   };
   const questions = draft.minorityQuestions;
-  return <section className="host-panel host-settings">
-    <div className="host-panel-head"><h2>게임 규칙</h2><span className="host-badge">{game.phase === "lobby" ? "수정 가능" : "게임 시작 후 잠김"}</span></div>
-    <p>모든 설정은 게임 시작 전(대기실)에 저장해 주세요. 소수의 선택은 질문 하나가 1회차이고, 질문 하나에 약 1분 걸립니다.</p>
-    <fieldset disabled={game.phase !== "lobby" || busy}>
-      <div className="host-settings-grid">{NUMBER_FIELDS.map(([key, label, hint, min, max]) =>
-        <label key={key}>{label}<small>{hint}</small><input type="number" inputMode="numeric" min={min} max={max} step="1" value={Number.isNaN(draft[key]) ? "" : draft[key] ?? ""} onChange={e => setNumber(key, e.target.value)} /></label>)}
-      </div>
-      <p className="host-start-chips-note">모든 테이블은 0칩으로 시작합니다. 얼굴 카드와 소수의 선택에서 얻은 칩으로 룰렛에 참여합니다.</p>
-      <div className="host-question-editor">
-        <div className="host-panel-head"><h2>소수의 선택 질문</h2><span className="host-subtle">본게임 {questions.length}개 질문</span></div>
-        <QuestionEditor title="연습 질문" question={draft.minorityPracticeQuestion} onChange={u => setDraft(prev => ({ ...prev, minorityPracticeQuestion: { ...prev.minorityPracticeQuestion, ...u } }))} />
-        {questions.map((q, i) => <QuestionEditor key={i} title={`${i + 1}번째 질문`} question={q} onChange={u => setQuestion(i, u)}
-          onRemove={questions.length > 1 ? () => setDraft(prev => ({ ...prev, minorityQuestions: prev.minorityQuestions.filter((_, j) => j !== i) })) : null}
-          onMoveUp={i > 0 ? () => move(i, i - 1) : null}
-          onMoveDown={i < questions.length - 1 ? () => move(i, i + 1) : null} />)}
-        <button type="button" className="host-btn ghost" disabled={questions.length >= 20} onClick={() => setDraft(prev => ({ ...prev, minorityQuestions: [...prev.minorityQuestions, blankQuestion()] }))}>+ 질문 추가</button>
-      </div>
-      {error && <p className="message error" role="alert">{error}</p>}
-      <button className="primary" type="button" onClick={save}>설정 저장 →</button>
-    </fieldset>
-  </section>;
+  const locked = game.phase !== "lobby" || busy;
+  const badge = <span className="host-badge">{game.phase === "lobby" ? "수정 가능" : "게임 시작 후 잠김"}</span>;
+  return <>
+    <section className="host-panel host-settings" hidden={show !== "rules"}>
+      <div className="host-panel-head"><h2>칩 · 시간 설정</h2>{badge}</div>
+      <p>모든 설정은 게임 시작 전(대기실)에 저장해 주세요.</p>
+      <fieldset disabled={locked}>
+        <div className="host-settings-grid">{NUMBER_FIELDS.map(([key, label, hint, min, max]) =>
+          <label key={key}>{label}<small>{hint}</small><input type="number" inputMode="numeric" min={min} max={max} step="1" value={Number.isNaN(draft[key]) ? "" : draft[key] ?? ""} onChange={e => setNumber(key, e.target.value)} /></label>)}
+        </div>
+        <p className="host-start-chips-note">모든 테이블은 0칩으로 시작합니다. 얼굴 카드와 소수의 선택에서 얻은 칩으로 룰렛에 참여합니다.</p>
+        {show === "rules" && error && <p className="message error" role="alert">{error}</p>}
+        <button className="primary" type="button" onClick={save}>설정 저장 →</button>
+      </fieldset>
+    </section>
+    <section className="host-panel host-settings" hidden={show !== "questions"}>
+      <div className="host-panel-head"><h2>소수의 선택 문제</h2>{badge}</div>
+      <p>질문 하나가 1회차이고, 질문 하나에 약 1분 걸립니다. 지금 본게임 <b>{questions.length}개</b> 질문.</p>
+      <fieldset disabled={locked}>
+        <div className="host-question-editor">
+          <QuestionEditor title="연습 질문" question={draft.minorityPracticeQuestion} onChange={u => setDraft(prev => ({ ...prev, minorityPracticeQuestion: { ...prev.minorityPracticeQuestion, ...u } }))} />
+          {questions.map((q, i) => <QuestionEditor key={i} title={`${i + 1}번째 질문`} question={q} onChange={u => setQuestion(i, u)}
+            onRemove={questions.length > 1 ? () => setDraft(prev => ({ ...prev, minorityQuestions: prev.minorityQuestions.filter((_, j) => j !== i) })) : null}
+            onMoveUp={i > 0 ? () => move(i, i - 1) : null}
+            onMoveDown={i < questions.length - 1 ? () => move(i, i + 1) : null} />)}
+          <button type="button" className="host-btn ghost" disabled={questions.length >= 20} onClick={() => setDraft(prev => ({ ...prev, minorityQuestions: [...prev.minorityQuestions, blankQuestion()] }))}>+ 질문 추가</button>
+        </div>
+        {show === "questions" && error && <p className="message error" role="alert">{error}</p>}
+        <button className="primary host-settings-save" type="button" onClick={save}>문제 저장 →</button>
+      </fieldset>
+    </section>
+  </>;
 }
+
+const SETTING_TABS = [["rules", "칩 · 시간"], ["faces", "얼굴 사진"], ["questions", "소수의 선택 문제"]] as const;
+type SettingTab = typeof SETTING_TABS[number][0];
 
 export default function HostConsole(props: Props) {
   const { game, busy, resultHidden, hostCooldown, error, notice, participantUrl, hostToken, onAction, onTeamAction, onTableExclusion, onFacePeople, onAdjust, onRefresh, onCopy, onNewGame, onLeave } = props;
   const R = roundsOf(game);
   const settings = game.settings;
   const [tab, setTab] = useState<"play" | "scores" | "settings">("play");
+  const [settingTab, setSettingTab] = useState<SettingTab>("rules");
   const minoritySeconds = useCountdown(game.phase === "minority_play" ? game.minorityDeadline : null, game.serverTime);
   const pausedSeconds = game.paused ? Math.ceil(game.paused.remaining / 1000) : null;
   const faceSeconds = useCountdown(game.phase === "face_play" ? game.face?.deadline : null, game.serverTime) ?? pausedSeconds;
   const betSeconds = useCountdown(game.phase === "roulette_betting" ? game.rouletteDeadline : null, game.serverTime);
-  const timerSeconds = game.paused ? pausedSeconds : game.phase === "face_play" ? faceSeconds : game.phase === "minority_play" ? minoritySeconds : betSeconds;
+  const nextSeconds = useCountdown(game.phase === "minority_result" ? game.minorityNextAt : null, game.serverTime);
+  const timerSeconds = game.paused ? pausedSeconds : game.phase === "face_play" ? faceSeconds : game.phase === "minority_play" ? minoritySeconds : game.phase === "minority_result" ? nextSeconds : betSeconds;
   const excluded = game.excludedTables;
   const eligible = settings.tableCount - excluded.length;
   const sorted = [...game.teams].sort((a, b) => b.chips - a.chips || a.table - b.table);
@@ -348,8 +366,11 @@ export default function HostConsole(props: Props) {
 
         {tab === "settings" && <>
           <HostBackup hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onImported={onRefresh} />
-          <HostFaceEditor people={settings.facePeople || []} hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onSave={onFacePeople} />
-          <SettingsPanel game={game} busy={busy} onSettings={props.onSettings} />
+          <nav className="host-subtabs" role="tablist" aria-label="게임 설정 종류">{SETTING_TABS.map(([id, label]) =>
+            <button key={id} type="button" role="tab" aria-selected={settingTab === id} className={settingTab === id ? "active" : ""} onClick={() => setSettingTab(id)}>{label}</button>)}
+          </nav>
+          <div hidden={settingTab !== "faces"}><HostFaceEditor people={settings.facePeople || []} hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onSave={onFacePeople} /></div>
+          <SettingsPanel game={game} busy={busy} onSettings={props.onSettings} show={settingTab === "faces" ? null : settingTab} />
         </>}
         <footer><span>DT&amp;FIG OUTING 2026 <b>✦</b> MACAU</span></footer>
       </div>

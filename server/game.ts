@@ -50,7 +50,7 @@ type MinorityHistory = { round: number; question: MinorityQuestion; result: Mino
 type Room = {
   room: string; phase: Phase; teams: Team[]; settings: Settings; excludedTables: number[];
   face?: FaceState | null;
-  minorityRound?: number; minorityPractice?: boolean; minorityDeadline?: number | null; minorityResultAt?: number | null;
+  minorityRound?: number; minorityPractice?: boolean; minorityDeadline?: number | null; minorityResultAt?: number | null; minorityNextAt?: number | null;
   minorityResult?: MinorityOutcome | null; minorityHistory?: MinorityHistory[];
   round: number; result: Color | null; rouletteDeadline?: number | null; rouletteSpinStartedAt?: number | null; history: RouletteHistory[];
   paused?: { remaining: number } | null; // 운영자 일시정지 (남은 시간 보관)
@@ -163,6 +163,7 @@ export function publicState(room: Room, teamToken = "", isHost = false) {
     minorityRound: room.minorityRound ?? 1,
     minorityPractice: room.minorityPractice === true,
     minorityDeadline: room.minorityDeadline ?? null,
+    minorityNextAt: room.phase === "minority_result" ? room.minorityNextAt ?? null : null,
     minorityResult: room.minorityResult ?? null,
     minorityHistory: isHost ? room.minorityHistory ?? [] : [],
     paused: room.paused ? { remaining: room.paused.remaining } : null,
@@ -206,12 +207,30 @@ type Timer = { get: () => number | null | undefined; set: (v: number | null) => 
 function activeTimer(room: Room): Timer | null {
   if (room.phase === "face_play" && room.face && room.face.stage !== "done") return { get: () => room.face!.deadline, set: v => { room.face!.deadline = v; } };
   if (room.phase === "minority_play") return { get: () => room.minorityDeadline, set: v => { room.minorityDeadline = v; } };
+  if (hasAutoNext(room)) return { get: () => room.minorityNextAt, set: v => { room.minorityNextAt = v; } };
   if (room.phase === "roulette_betting") return { get: () => room.rouletteDeadline, set: v => { room.rouletteDeadline = v; } };
   return null;
 }
 /** 단계가 바뀌면 일시정지는 자동으로 풀림 */
 function clearStalePause(room: Room) {
   if (room.paused && !activeTimer(room)) room.paused = null;
+}
+/** 소수의 선택 결과 화면에서 다음 문제까지 자동으로 넘어가는 시간 */
+export const MINORITY_AUTO_NEXT_MS = 10_000;
+/** 본게임 결과 화면이고 다음 문제가 남아 있으면 자동으로 넘어감 (연습 결과·마지막 문제는 운영자가 직접) */
+function hasAutoNext(room: Room) {
+  return room.phase === "minority_result" && !room.minorityPractice && (room.minorityRound ?? 1) < room.settings.minorityRounds;
+}
+/** 소수의 선택 문제 시작 (round 0 = 연습) */
+function startMinorityQuestion(game: Room, round: number) {
+  game.minorityPractice = round === 0;
+  game.minorityRound = round;
+  for (const team of game.teams) { team.minorityChoice = null; team.minorityChange = null; }
+  game.minorityResult = null;
+  game.minorityResultAt = null;
+  game.minorityNextAt = null;
+  game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1000;
+  game.phase = "minority_play";
 }
 function revealMinority(game: Room) {
   const question = currentQuestion(game);
@@ -229,6 +248,7 @@ function revealMinority(game: Room) {
     (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map(team => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
   }
   game.phase = "minority_result";
+  game.minorityNextAt = hasAutoNext(game) ? Date.now() + MINORITY_AUTO_NEXT_MS : null;
 }
 /** 베팅 시간이 끝나면 아직 베팅하지 않은 테이블은 이번 판을 건너뜀 */
 function closeBetting(game: Room) {
@@ -240,6 +260,7 @@ function reconcile(room: Room, now = Date.now()): boolean {
   if (room.paused) return false;
   let changed = reconcileFace(room, now);
   if (room.phase === "minority_play" && typeof room.minorityDeadline === "number" && now >= room.minorityDeadline) { revealMinority(room); changed = true; }
+  if (hasAutoNext(room) && typeof room.minorityNextAt === "number" && now >= room.minorityNextAt) { startMinorityQuestion(room, (room.minorityRound ?? 1) + 1); changed = true; }
   if (room.phase === "roulette_betting" && typeof room.rouletteDeadline === "number" && now >= room.rouletteDeadline) { closeBetting(room); changed = true; }
   return changed;
 }
@@ -468,21 +489,14 @@ export async function POST(input: unknown): Promise<ApiResult> {
         return asHost(game => {
           if (action === "start_minority_practice") {
             if (game.phase !== "minority_tutorial") fail("게임 안내 화면에서 연습을 시작해 주세요.");
-            game.minorityPractice = true;
-            game.minorityRound = 0;
+            startMinorityQuestion(game, 0);
           } else if (action === "start_minority_game") {
             if (game.phase !== "minority_tutorial" && !(game.phase === "minority_result" && game.minorityPractice)) fail("안내 또는 연습 결과 화면에서 본 게임을 시작해 주세요.");
-            game.minorityPractice = false;
-            game.minorityRound = 1;
+            startMinorityQuestion(game, 1);
           } else {
-            if (game.phase !== "minority_result" || game.minorityPractice || (game.minorityRound ?? 1) >= game.settings.minorityRounds) fail("다음 문제가 없습니다.");
-            game.minorityRound = (game.minorityRound ?? 1) + 1;
+            if (!hasAutoNext(game)) fail("다음 문제가 없습니다.");
+            startMinorityQuestion(game, (game.minorityRound ?? 1) + 1);
           }
-          for (const team of game.teams) { team.minorityChoice = null; team.minorityChange = null; }
-          game.minorityResult = null;
-          game.minorityResultAt = null;
-          game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1000;
-          game.phase = "minority_play";
         });
       case "minority_choose":
         return asTeam((game, team) => {
