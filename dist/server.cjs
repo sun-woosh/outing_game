@@ -648,6 +648,7 @@ function publicState(room, teamToken = "", isHost = false) {
     minorityRound: room.minorityRound ?? 1,
     minorityPractice: room.minorityPractice === true,
     minorityDeadline: room.minorityDeadline ?? null,
+    minorityNextAt: room.phase === "minority_result" ? room.minorityNextAt ?? null : null,
     minorityResult: room.minorityResult ?? null,
     minorityHistory: isHost ? room.minorityHistory ?? [] : [],
     paused: room.paused ? { remaining: room.paused.remaining } : null,
@@ -692,6 +693,9 @@ function activeTimer(room) {
   if (room.phase === "minority_play") return { get: () => room.minorityDeadline, set: (v) => {
     room.minorityDeadline = v;
   } };
+  if (hasAutoNext(room)) return { get: () => room.minorityNextAt, set: (v) => {
+    room.minorityNextAt = v;
+  } };
   if (room.phase === "roulette_betting") return { get: () => room.rouletteDeadline, set: (v) => {
     room.rouletteDeadline = v;
   } };
@@ -699,6 +703,23 @@ function activeTimer(room) {
 }
 function clearStalePause(room) {
   if (room.paused && !activeTimer(room)) room.paused = null;
+}
+var MINORITY_AUTO_NEXT_MS = 1e4;
+function hasAutoNext(room) {
+  return room.phase === "minority_result" && !room.minorityPractice && (room.minorityRound ?? 1) < room.settings.minorityRounds;
+}
+function startMinorityQuestion(game, round) {
+  game.minorityPractice = round === 0;
+  game.minorityRound = round;
+  for (const team of game.teams) {
+    team.minorityChoice = null;
+    team.minorityChange = null;
+  }
+  game.minorityResult = null;
+  game.minorityResultAt = null;
+  game.minorityNextAt = null;
+  game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1e3;
+  game.phase = "minority_play";
 }
 function revealMinority(game) {
   const question = currentQuestion(game);
@@ -719,6 +740,7 @@ function revealMinority(game) {
     (game.minorityHistory ??= []).push({ round: game.minorityRound ?? 1, question, result, teams: game.teams.map((team) => ({ id: team.id, table: team.table, choice: team.minorityChoice ?? null, change: team.minorityChange ?? 0, chips: team.chips })) });
   }
   game.phase = "minority_result";
+  game.minorityNextAt = hasAutoNext(game) ? Date.now() + MINORITY_AUTO_NEXT_MS : null;
 }
 function closeBetting(game) {
   game.rouletteDeadline = null;
@@ -729,6 +751,10 @@ function reconcile(room, now = Date.now()) {
   let changed = reconcileFace(room, now);
   if (room.phase === "minority_play" && typeof room.minorityDeadline === "number" && now >= room.minorityDeadline) {
     revealMinority(room);
+    changed = true;
+  }
+  if (hasAutoNext(room) && typeof room.minorityNextAt === "number" && now >= room.minorityNextAt) {
+    startMinorityQuestion(room, (room.minorityRound ?? 1) + 1);
     changed = true;
   }
   if (room.phase === "roulette_betting" && typeof room.rouletteDeadline === "number" && now >= room.rouletteDeadline) {
@@ -1002,24 +1028,14 @@ async function POST(input) {
         return asHost((game) => {
           if (action === "start_minority_practice") {
             if (game.phase !== "minority_tutorial") fail2("\uAC8C\uC784 \uC548\uB0B4 \uD654\uBA74\uC5D0\uC11C \uC5F0\uC2B5\uC744 \uC2DC\uC791\uD574 \uC8FC\uC138\uC694.");
-            game.minorityPractice = true;
-            game.minorityRound = 0;
+            startMinorityQuestion(game, 0);
           } else if (action === "start_minority_game") {
             if (game.phase !== "minority_tutorial" && !(game.phase === "minority_result" && game.minorityPractice)) fail2("\uC548\uB0B4 \uB610\uB294 \uC5F0\uC2B5 \uACB0\uACFC \uD654\uBA74\uC5D0\uC11C \uBCF8 \uAC8C\uC784\uC744 \uC2DC\uC791\uD574 \uC8FC\uC138\uC694.");
-            game.minorityPractice = false;
-            game.minorityRound = 1;
+            startMinorityQuestion(game, 1);
           } else {
-            if (game.phase !== "minority_result" || game.minorityPractice || (game.minorityRound ?? 1) >= game.settings.minorityRounds) fail2("\uB2E4\uC74C \uBB38\uC81C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
-            game.minorityRound = (game.minorityRound ?? 1) + 1;
+            if (!hasAutoNext(game)) fail2("\uB2E4\uC74C \uBB38\uC81C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+            startMinorityQuestion(game, (game.minorityRound ?? 1) + 1);
           }
-          for (const team of game.teams) {
-            team.minorityChoice = null;
-            team.minorityChange = null;
-          }
-          game.minorityResult = null;
-          game.minorityResultAt = null;
-          game.minorityDeadline = Date.now() + game.settings.minoritySeconds * 1e3;
-          game.phase = "minority_play";
         });
       case "minority_choose":
         return asTeam((game, team) => {

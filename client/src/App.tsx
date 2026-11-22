@@ -245,6 +245,7 @@ export default function App() {
   const pausedSeconds = game?.paused ? Math.ceil(game.paused.remaining / 1000) : null;
   const faceSeconds = useCountdown(game?.phase === "face_play" ? game.face?.deadline : null, game?.serverTime) ?? pausedSeconds;
   const minoritySeconds = useCountdown(game?.phase === "minority_play" ? game.minorityDeadline : null, game?.serverTime) ?? pausedSeconds;
+  const minorityNextSeconds = useCountdown(game?.phase === "minority_result" ? game.minorityNextAt : null, game?.serverTime) ?? (game?.phase === "minority_result" ? pausedSeconds : null);
   const betSeconds = useCountdown(game?.phase === "roulette_betting" ? game.rouletteDeadline : null, game?.serverTime) ?? pausedSeconds;
   const spinElapsed = spinClock ? Math.max(0, Date.now() - spinClock.localStart) : null;
   const resultHidden = spinPending || (spinElapsed !== null && spinElapsed < ROULETTE_SPIN_MS);
@@ -300,7 +301,7 @@ export default function App() {
         {phase.startsWith("face_") ? <FaceScreen game={game} view={view} busy={busy} seconds={faceSeconds} onPick={index => asTeam("face_pick", { index, turnId: game.face?.turnId })} onAnswer={answer => asTeam("face_answer", { answer, turnId: game.face?.turnId })} />
           : phase === "minority_summary" ? <Standings game={game} view={view} mode="summary" />
           : phase === "finished" ? <Standings game={game} view={view} mode="final" />
-          : phase.startsWith("minority_") ? <MinorityScreen game={game} view={view} busy={busy} seconds={minoritySeconds} onChoose={choice => asTeam("minority_choose", { choice, minorityRound: game.minorityRound })} />
+          : phase.startsWith("minority_") ? <MinorityScreen game={game} view={view} busy={busy} seconds={game.phase === "minority_result" ? minorityNextSeconds : minoritySeconds} onChoose={choice => asTeam("minority_choose", { choice, minorityRound: game.minorityRound })} />
           : phase === "roulette_tutorial" ? <GameTutorial settings={game.settings} view={view} />
           : phase === "lobby" ? <Lobby game={game} view={view} participantUrl={participantUrl} />
           : <RouletteStage game={game} view={view} busy={busy} resultHidden={resultHidden} seconds={betSeconds} spinOffsetMs={spinClock?.initialElapsed ?? 0}

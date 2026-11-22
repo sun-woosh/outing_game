@@ -222,12 +222,42 @@ test("운영 도구: 일시정지·연장·칩 조정·게임 중 입장 제한"
 test("소수의 선택: 시간이 끝나면 자동 발표", async () => {
   const created = await post({ action: "create", hostToken });
   room = created.body.room;
-  await H("update_settings", { settings: { ...created.body.state.settings, minoritySeconds: 10 } });
+  const qs = created.body.state.settings.minorityQuestions;
+  assert.strictEqual((await H("update_settings", { settings: { ...created.body.state.settings, minoritySeconds: 10, minorityQuestions: qs.slice(0, 2), minorityRounds: 2 } })).status, 200);
   await post({ action: "join", table: 1 });
   await H("start_minority");
   await H("start_minority_game");
   await new Promise(r => setTimeout(r, 10_600));
-  assert.strictEqual((await get()).state.phase, "minority_result");
+  let st = (await get()).state;
+  assert.strictEqual(st.phase, "minority_result");
+  // 결과 화면 10초 뒤 자동으로 다음 문제 (일시정지하면 멈춤)
+  assert.ok(st.minorityNextAt - Date.now() > 8000 && st.minorityNextAt - Date.now() <= 10_000);
+  await H("pause");
+  st = (await get({ "x-host-token": hostToken })).state;
+  assert.ok(st.paused && st.minorityNextAt === null);
+  await H("resume");
+  await new Promise(r => setTimeout(r, 10_600));
+  st = (await get()).state;
+  assert.strictEqual(st.phase, "minority_play");
+  assert.strictEqual(st.minorityRound, 2);
+});
+
+test("소수의 선택: 연습·마지막 문제 결과는 자동으로 넘어가지 않음", async () => {
+  const created = await post({ action: "create", hostToken });
+  room = created.body.room;
+  const s = created.body.state.settings;
+  await H("update_settings", { settings: { ...s, minorityRounds: 1, minorityQuestions: s.minorityQuestions.slice(0, 1) } });
+  await post({ action: "join", table: 1 });
+  await H("start_minority");
+  await H("start_minority_practice");
+  assert.strictEqual((await H("reveal_minority", { minorityRound: 0 })).status, 200);
+  assert.strictEqual((await get()).state.minorityNextAt, null);
+  await H("start_minority_game");
+  assert.strictEqual((await H("reveal_minority", { minorityRound: 1 })).status, 200);
+  const st = (await get()).state;
+  assert.strictEqual(st.phase, "minority_result");
+  assert.strictEqual(st.minorityNextAt, null);
+  assert.strictEqual((await H("next_minority")).status, 400);
 });
 
 test("설정 전체 백업: 배포(데이터 삭제) 후 파일로 복구", async () => {
