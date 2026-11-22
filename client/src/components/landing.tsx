@@ -2,20 +2,20 @@ import { useState, type ReactNode } from "react";
 
 type Props = {
   mode: "team" | "host"; hostAuth: boolean; busy: boolean; roomReady: boolean; activeKnown: boolean;
-  tableCount: number; excluded: number[]; message: ReactNode;
+  tableCount: number; message: ReactNode;
   onLogin: (password: string) => void; onCreate: () => void; onJoin: (table: number) => void;
 };
 
 /** 첫 화면: 참가자는 테이블 번호로 입장, 운영자는 비밀번호 로그인 → 새 게임 만들기 */
-export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, tableCount, excluded, message, onLogin, onCreate, onJoin }: Props) {
+export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, tableCount, message, onLogin, onCreate, onJoin }: Props) {
   const [table, setTable] = useState("");
   const [password, setPassword] = useState("");
   const host = mode === "host";
   return <div className="landing shell">
     <section className="intro">
-      <div className="eyebrow"><span /> 2026 DT OUTING <span /></div>
+      <div className="eyebrow"><span /> 2026 DT&amp;FIG OUTING <span /></div>
       <h1>ALL IN<br /><em>MACAU</em></h1>
-      <p className="intro-sub">2026 DT OUTING <span>✦</span> TEAM GAME</p>
+      <p className="intro-sub">2026 DT&amp;FIG OUTING <span>✦</span> TEAM GAME</p>
       <p className="intro-copy">테이블이 함께 상의하고, 함께 칩을 모으세요.<br />어떤 게임이 기다리고 있을지는 곧 공개됩니다.</p>
     </section>
     <section className="entry card">
@@ -30,7 +30,6 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
           </form>
         : <form onSubmit={e => { e.preventDefault(); onJoin(Number(table)); }}>
             <label>테이블 번호<input type="number" inputMode="numeric" pattern="[0-9]*" value={table} onChange={e => setTable(e.target.value)} min="1" max={tableCount} placeholder={`1–${tableCount}`} autoComplete="off" enterKeyHint="go" /></label>
-            {excluded.length > 0 && <p className="helper">불참 테이블: {[...excluded].sort((a, b) => a - b).join(", ")}번</p>}
             <button className="primary full" disabled={busy || !roomReady || !table}>{busy ? "참여하는 중..." : "게임 입장하기"} <span>→</span></button>
             {!roomReady && <p className="helper">{activeKnown ? "운영자가 게임을 준비 중입니다. 잠시만 기다려 주세요." : "게임을 확인하는 중입니다."}</p>}
           </form>}

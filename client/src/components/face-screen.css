@@ -147,3 +147,29 @@
 .face-gains b{min-width:48px;font-size:18px}
 .face-gains span{flex:1;text-align:left;font-size:14px;color:#c6ad92}
 .face-gains strong{font-size:22px;color:#f1cf88}
+
+/* ---- 빔 진행 화면: 순위 없이 카드판 크게 + 큰 남은 시간 ---- */
+.projector .face-play-grid.face-solo{grid-template-columns:minmax(0,1fr)}
+/* 빔: 진행 화면을 화면 높이에 딱 맞추고, 남은 공간에 카드 4줄이 꽉 차게 (머리글 높이가 바뀌어도 잘리지 않음) */
+.projector .face-play-grid{height:calc(100dvh - 76px - 22px);align-items:stretch}
+.projector .face-play-grid .face-board-card{min-height:0;height:100%}
+.projector .face-play-grid .face-board-fit{flex:1;min-height:0;container-type:size;display:grid;place-items:center}
+.projector .face-play-grid .face-board{gap:12px;width:min(100cqw,calc((100cqh - 36px) / 4 * .75 * var(--cols,4) + (var(--cols,4) - 1) * 12px));margin:0 auto}
+.projector .face-play-grid .face-name-card{min-height:0;overflow:auto}
+.face-beam-head{display:flex;align-items:center;gap:22px;margin-bottom:14px}
+.face-beam-head .face-turn-badge{flex:none;padding:8px 18px}
+.face-beam-head .face-turn-badge strong{font-size:clamp(24px,2vw,34px);white-space:nowrap}
+.face-beam-status{flex:1;min-width:0}
+.face-beam-status small{display:block;font-size:clamp(13px,1vw,17px);font-weight:700;color:#dfbd7a;margin-bottom:4px}
+.face-beam-status .face-status{font-size:clamp(24px,2.2vw,38px);min-width:0}
+.face-beam-clock{flex:none;display:flex;align-items:baseline;gap:8px;padding:4px 22px;border:2px solid #dfbd7a;background:#1c1011;color:#f7eada}
+.face-beam-clock small{font-size:clamp(15px,1.1vw,20px);font-weight:700;color:#e4d2c4}
+.face-beam-clock strong{font:700 clamp(54px,4.6vw,84px)/1 system-ui,-apple-system,sans-serif;color:#f1cf88;font-variant-numeric:tabular-nums;min-width:1.2em;text-align:right}
+.face-beam-clock span{font-size:clamp(18px,1.4vw,26px);font-weight:700}
+.face-beam-clock.urgent{border-color:#e46a6a;background:#4a1a1c}
+.face-beam-clock.urgent strong{color:#ff8a86;animation:face-tick 1s steps(1) infinite}
+.face-beam-clock.idle{opacity:.35}
+@keyframes face-tick{50%{opacity:.55}}
+/* 빔 카드 번호·별 크게 */
+.projector .face-play-grid .face-back b{font-size:clamp(14px,1.2vw,22px)}
+.projector .face-play-grid .face-back i{font-size:clamp(28px,2.6vw,48px)}

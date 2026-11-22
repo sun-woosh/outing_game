@@ -13,7 +13,9 @@ export default function RouletteStage({ game, view, busy, resultHidden, spinOffs
   const betOpen = betting && (!!game.rouletteDeadline || !!game.paused);
   // 빔: 회전 중에는 휠만 크게 (베팅 중에는 남은 시간과 테이블별 베팅 현황을 함께)
   const focus = view === "beam" && game.phase === "roulette_result" && resultHidden;
-  return <div className={`game-grid roulette-stage ${focus ? "roulette-focus" : ""}`}>
+  // 폰: 회전 중에는 휠만 화면 맨 위에 크게 보여 줌 (멈추는 순간을 직접 보도록)
+  const phoneSpin = view === "team" && resultHidden;
+  return <div className={`game-grid roulette-stage ${focus ? "roulette-focus" : ""} ${phoneSpin ? "roulette-phone-spin" : ""}`}>
     <section className="table card">
       <div className="table-top">
         <span className="status"><i /> {resultHidden ? "룰렛 회전 중" : betting ? "베팅 진행 중" : game.phase === "roulette_result" ? "결과 발표" : "게임 종료"}</span>
@@ -29,7 +31,7 @@ export default function RouletteStage({ game, view, busy, resultHidden, spinOffs
         </div>}
       </div>
     </section>
-    {view === "team" ? <BetPanel game={game} busy={busy} resultHidden={resultHidden} betOpen={betOpen} seconds={seconds} onBet={onBet} onSkip={onSkip} onUndoSkip={onUndoSkip} />
+    {phoneSpin ? null : view === "team" ? <BetPanel game={game} busy={busy} resultHidden={resultHidden} betOpen={betOpen} seconds={seconds} onBet={onBet} onSkip={onSkip} onUndoSkip={onUndoSkip} />
       : !focus && <Leaderboard game={game} resultHidden={resultHidden} />}
   </div>;
 }

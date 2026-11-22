@@ -277,7 +277,7 @@ export default function App() {
 
   return <main className={`app ${mode === "team" ? "participant" : "projector"} ${mode === "team" && phase === "roulette_betting" ? "team-betting" : ""} ${mode === "beam" && phase === "lobby" ? "beam-lobby" : ""}`}>
     <header className="topbar">
-      <a className="brand" href="/"><span className="brand-mark">✦</span><span>DT OUTING <b>2026</b></span></a>
+      <a className="brand" href="/"><span className="brand-mark">✦</span><span>DT&amp;FIG OUTING <b>2026</b></span></a>
       <div className="top-right">
         <span className="location">MACAU <span>✦</span> GAME NIGHT</span>
         {session && session.role !== "beam" && <button className="text-button" disabled={busy} onClick={leave}>{session.role === "host" ? "나가기" : "다른 테이블로 참여"}</button>}
@@ -285,7 +285,7 @@ export default function App() {
     </header>
     {mode === "beam" && !session ? <div className="loading">{error || (activeKnown ? "운영자가 게임을 준비하고 있습니다." : "게임을 불러오는 중...")}</div>
       : !session ? <Landing mode={mode === "host" ? "host" : "team"} hostAuth={!!hostAuth} busy={busy} roomReady={!!room} activeKnown={activeKnown}
-          tableCount={tableCount} excluded={excluded} message={message} onLogin={login} onCreate={createGame} onJoin={join} />
+          tableCount={tableCount} message={message} onLogin={login} onCreate={createGame} onJoin={join} />
       : !game ? <div className="loading">{error || "게임을 불러오는 중..."}<button className="text-button" onClick={leave}>돌아가기</button></div>
       : <div className="shell game-shell">
         <div className="game-heading"><div>
@@ -305,7 +305,7 @@ export default function App() {
           : phase === "lobby" ? <Lobby game={game} view={view} participantUrl={participantUrl} />
           : <RouletteStage game={game} view={view} busy={busy} resultHidden={resultHidden} seconds={betSeconds} spinOffsetMs={spinClock?.initialElapsed ?? 0}
               onBet={bet} onSkip={() => asTeam("skip_bet")} onUndoSkip={() => asTeam("undo_skip")} />}
-        <footer><span>DT OUTING 2026 <b>✦</b> MACAU</span><span>PLAY BOLD. PLAY TOGETHER.</span></footer>
+        <footer><span>DT&amp;FIG OUTING 2026 <b>✦</b> MACAU</span><span>PLAY BOLD. PLAY TOGETHER.</span></footer>
       </div>}
   </main>;
 }

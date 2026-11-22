@@ -269,7 +269,7 @@ export default function HostConsole(props: Props) {
 
   return <main className="host-app host-simple">
     <header className="host-topbar">
-      <div className="host-brand"><span className="brand-mark">✦</span><div><strong>DT OUTING <b>2026</b></strong><small>MACAU GAME CONTROL</small></div></div>
+      <div className="host-brand"><span className="brand-mark">✦</span><div><strong>DT&amp;FIG OUTING <b>2026</b></strong><small>MACAU GAME CONTROL</small></div></div>
       <div className="host-top-actions"><a className="host-btn ghost" href="/beam" target="_blank" rel="noreferrer">빔 화면 열기 ↗</a><button className="host-btn ghost" disabled={busy} onClick={onLeave}>로그아웃</button></div>
     </header>
     <div className="host-layout">
@@ -278,7 +278,7 @@ export default function HostConsole(props: Props) {
       </aside>
       <div className="host-main">
         <div className="host-page-head">
-          <div><div className="card-kicker">DT OUTING 2026</div><h1>{TABS.find(([id]) => id === tab)?.[1]}</h1>
+          <div><div className="card-kicker">DT&amp;FIG OUTING 2026</div><h1>{TABS.find(([id]) => id === tab)?.[1]}</h1>
             <p>{tab === "play" ? "아래 버튼을 눌러 순서대로 진행하세요." : tab === "settings" ? "게임 시작 전 사진, 질문, 규칙을 설정하세요." : "테이블별 보유 칩을 확인하세요."}</p></div>
           {tab === "settings" && <button className="host-btn ghost" disabled={busy} onClick={onNewGame}>새 게임 만들기</button>}
         </div>
@@ -351,7 +351,7 @@ export default function HostConsole(props: Props) {
           <HostFaceEditor people={settings.facePeople || []} hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onSave={onFacePeople} />
           <SettingsPanel game={game} busy={busy} onSettings={props.onSettings} />
         </>}
-        <footer><span>DT OUTING 2026 <b>✦</b> MACAU</span></footer>
+        <footer><span>DT&amp;FIG OUTING 2026 <b>✦</b> MACAU</span></footer>
       </div>
     </div>
   </main>;
