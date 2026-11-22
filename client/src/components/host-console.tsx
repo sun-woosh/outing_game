@@ -9,6 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useCountdown } from "../lib/use-countdown";
 import FaceScreen from "./face-screen";
 import HostFaceEditor from "./host-face-editor";
+import HostBackup from "./host-backup";
 import { colorLabel, fmt, roundsOf, type Game, type HostAction, type Question, type Settings, type Team, type TeamAction } from "../types";
 import "./host-simple.css";
 
@@ -346,7 +347,8 @@ export default function HostConsole(props: Props) {
         </>}
 
         {tab === "settings" && <>
-          <HostFaceEditor people={settings.facePeople || []} hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onSave={onFacePeople} onImported={onRefresh} />
+          <HostBackup hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onImported={onRefresh} />
+          <HostFaceEditor people={settings.facePeople || []} hostToken={hostToken} locked={game.phase !== "lobby"} busy={busy} onSave={onFacePeople} />
           <SettingsPanel game={game} busy={busy} onSettings={props.onSettings} />
         </>}
         <footer><span>DT OUTING 2026 <b>✦</b> MACAU</span></footer>

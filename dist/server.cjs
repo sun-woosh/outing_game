@@ -1271,19 +1271,41 @@ app.post("/api/face/photo", bigJson, async (req, res) => {
   if (!id) return res.status(400).json({ error: "JPG/PNG/WEBP \uC774\uBBF8\uC9C0(1.5MB \uC774\uD558)\uB9CC \uC62C\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4." });
   res.json({ id });
 });
+var BACKUP_SETTING_KEYS = ["tableCount", "rouletteSpins", "minorityBonus", "minoritySeconds", "rouletteBetSeconds", "minorityRounds", "minorityQuestions", "minorityPracticeQuestion", "faceMatchBonus", "faceNameBonus", "faceSelectSeconds", "faceNameSeconds"];
 app.get("/api/face/export", async (req, res) => {
   if (!await isHostReq(req)) return res.status(403).json({ error: "\uC6B4\uC601\uC790 \uAD8C\uD55C\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." });
   const room = activeRoomData();
   const people = (room?.settings.facePeople || []).map((p) => ({ name: p.name, aliases: p.aliases, board: p.board ?? 1, photo: p.photo ? photoDataUrl(p.photo) : null }));
-  res.set("Content-Disposition", 'attachment; filename="face-cards.json"').json({ type: "all-in-macau-face-cards", version: 1, people });
+  const settings = room ? Object.fromEntries(BACKUP_SETTING_KEYS.map((k) => [k, room.settings[k]])) : null;
+  res.set("Content-Disposition", 'attachment; filename="all-in-macau-backup.json"').json({ type: "all-in-macau-backup", version: 2, savedAt: (/* @__PURE__ */ new Date()).toISOString(), settings, excludedTables: room?.excludedTables ?? [], people });
 });
 app.post("/api/face/import", bigJson, async (req, res) => {
   const hostToken = req.get("x-host-token") || "";
   if (!await isHostReq(req)) return res.status(403).json({ error: "\uC6B4\uC601\uC790 \uAD8C\uD55C\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." });
-  const list = req.body?.people;
-  if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "\uC5BC\uAD74 \uCE74\uB4DC \uD30C\uC77C \uD615\uC2DD\uC774 \uC544\uB2D9\uB2C8\uB2E4." });
-  const people = list.map((p) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
-  const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
+  const body = req.body ?? {};
+  const room = activeRoomData();
+  if (!room) return res.status(400).json({ error: "\uBA3C\uC800 \uC0C8 \uAC8C\uC784\uC744 \uB9CC\uB4E4\uC5B4 \uC8FC\uC138\uC694." });
+  if (room.phase !== "lobby") return res.status(400).json({ error: "\uAC8C\uC784 \uC2DC\uC791 \uC804 \uB300\uAE30\uC2E4\uC5D0\uC11C\uB9CC \uBD88\uB7EC\uC62C \uC218 \uC788\uC2B5\uB2C8\uB2E4." });
+  if (body.settings && typeof body.settings === "object") {
+    const r2 = await POST({ action: "update_settings", hostToken, settings: { ...body.settings } });
+    if (r2.status >= 400) return res.status(r2.status).json(r2.body);
+  }
+  if (Array.isArray(body.excludedTables)) {
+    const want = new Set(body.excludedTables.filter((n) => Number.isInteger(n)));
+    const current = activeRoomData();
+    for (let table = 1; table <= current.settings.tableCount; table++) {
+      const now = current.excludedTables.includes(table);
+      if (want.has(table) !== now && !current.teams.some((t) => t.table === table)) await POST({ action: want.has(table) ? "exclude_table" : "include_table", hostToken, table });
+    }
+  }
+  const list = body.people;
+  if (list !== void 0) {
+    if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "\uBC31\uC5C5 \uD30C\uC77C \uD615\uC2DD\uC774 \uC544\uB2D9\uB2C8\uB2E4." });
+    const people = list.map((p) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
+    const r2 = await POST({ action: "face_set_people", hostToken, facePeople: people });
+    return res.status(r2.status).json(r2.body);
+  }
+  const r = await GET({ active: true, hostToken });
   res.status(r.status).json(r.body);
 });
 app.use("/assets", import_express.default.static(import_node_path2.default.join(CLIENT_DIR, "assets"), { maxAge: "30d", immutable: true }));

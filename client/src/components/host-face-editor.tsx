@@ -4,7 +4,7 @@ type FacePersonDraft = { id?: string; name: string; aliases: string; photo: stri
 /** 판 구성 (고정): 1판 8명(8쌍), 2판 12명(12쌍) */
 const NEED = { 1: 8, 2: 12 } as const;
 type FacePerson = { id: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 };
-type Props = { people: FacePerson[]; hostToken: string; locked: boolean; busy: boolean; onSave: (people: { id?: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 }[]) => void; onImported: () => void };
+type Props = { people: FacePerson[]; hostToken: string; locked: boolean; busy: boolean; onSave: (people: { id?: string; name: string; aliases: string[]; photo: string | null; board: 1 | 2 }[]) => void };
 
 const toDraft = (p: FacePerson): FacePersonDraft => ({ id: p.id, name: p.name, aliases: (p.aliases || []).join(", "), photo: p.photo, board: p.board ?? 1 });
 
@@ -24,12 +24,11 @@ async function resizeToDataUrl(file: File): Promise<string> {
   }
 }
 
-export default function HostFaceEditor({ people, hostToken, locked, busy, onSave, onImported }: Props) {
+export default function HostFaceEditor({ people, hostToken, locked, busy, onSave }: Props) {
   const [draft, setDraft] = useState<FacePersonDraft[]>(people.map(toDraft));
   const [status, setStatus] = useState("");
   const [working, setWorking] = useState(false);
   const bulkRef = useRef<HTMLInputElement>(null);
-  const importRef = useRef<HTMLInputElement>(null);
   const key = JSON.stringify(people);
   useEffect(() => { setDraft(people.map(toDraft)); }, [key]);
 
@@ -64,27 +63,6 @@ export default function HostFaceEditor({ people, hostToken, locked, busy, onSave
     setDraft(prev => prev.map((p, i) => i === index ? { ...p, photo } : p));
     setStatus("사진을 바꿨습니다. 저장하세요.");
   });
-  const exportFile = () => run(async () => {
-    const r = await fetch("/api/face/export", { headers: { "x-host-token": hostToken } });
-    if (!r.ok) throw new Error("내려받지 못했습니다.");
-    const blob = await r.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "face-cards.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-    setStatus("저장된 인물과 사진을 파일로 내려받았습니다. 재배포 후 사진이 사라지면 이 파일을 불러오세요.");
-  });
-  const importFile = (file: File | undefined) => run(async () => {
-    if (!file) return;
-    const json = JSON.parse(await file.text());
-    const r = await fetch("/api/face/import", { method: "POST", headers: { "Content-Type": "application/json", "x-host-token": hostToken }, body: JSON.stringify(json) });
-    const body = await r.json();
-    if (!r.ok) throw new Error(body.error || "불러오지 못했습니다.");
-    setStatus("파일에서 인물과 사진을 불러왔습니다.");
-    onImported();
-  });
-
   const countOf = (board: 1 | 2) => draft.filter(p => p.board === board && p.name.trim() && p.photo).length;
   const counts = { 1: countOf(1), 2: countOf(2) };
   const save = () => {
@@ -105,10 +83,7 @@ export default function HostFaceEditor({ people, hostToken, locked, busy, onSave
     <p className="host-subtle">다른 표기(영문 이름, 별명)는 쉼표로 적으면 정답으로 인정합니다. 띄어쓰기·대소문자는 무시합니다.</p>
     <div className="host-face-actions">
       <button type="button" className="host-btn ghost" disabled={disabled} onClick={() => bulkRef.current?.click()}>+ 사진 여러 장 추가</button>
-      <button type="button" className="host-btn ghost" disabled={busy || working || !people.length} onClick={exportFile}>파일로 내려받기 (백업)</button>
-      <button type="button" className="host-btn ghost" disabled={disabled} onClick={() => importRef.current?.click()}>백업 파일 불러오기</button>
       <input ref={bulkRef} type="file" accept="image/*" multiple hidden onChange={e => { void addPhotos(e.target.files); e.target.value = ""; }} />
-      <input ref={importRef} type="file" accept="application/json,.json" hidden onChange={e => { void importFile(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
     {status && <p className="host-face-status" role="status">{status}</p>}
     <div className="host-face-list">

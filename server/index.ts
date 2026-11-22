@@ -117,21 +117,48 @@ app.post("/api/face/photo", bigJson, async (req, res) => {
   if (!id) return res.status(400).json({ error: "JPG/PNG/WEBP 이미지(1.5MB 이하)만 올릴 수 있습니다." });
   res.json({ id });
 });
-// 인물+사진 전체를 파일로 내려받기 (재배포로 사진이 지워졌을 때 다시 불러오기용)
+// 설정 전체 백업: 게임 규칙·소수의 선택 질문·불참 테이블·얼굴 카드 인물과 사진
+// (재배포하면 서버 데이터가 지워지므로, 배포 후 이 파일 하나로 복구)
+const BACKUP_SETTING_KEYS = ["tableCount", "rouletteSpins", "minorityBonus", "minoritySeconds", "rouletteBetSeconds", "minorityRounds", "minorityQuestions", "minorityPracticeQuestion", "faceMatchBonus", "faceNameBonus", "faceSelectSeconds", "faceNameSeconds"] as const;
 app.get("/api/face/export", async (req, res) => {
   if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
   const room = activeRoomData();
   const people = (room?.settings.facePeople || []).map(p => ({ name: p.name, aliases: p.aliases, board: p.board ?? 1, photo: p.photo ? photoDataUrl(p.photo) : null }));
-  res.set("Content-Disposition", 'attachment; filename="face-cards.json"').json({ type: "all-in-macau-face-cards", version: 1, people });
+  const settings = room ? Object.fromEntries(BACKUP_SETTING_KEYS.map(k => [k, room.settings[k]])) : null;
+  res.set("Content-Disposition", 'attachment; filename="all-in-macau-backup.json"')
+    .json({ type: "all-in-macau-backup", version: 2, savedAt: new Date().toISOString(), settings, excludedTables: room?.excludedTables ?? [], people });
 });
-// 파일에서 불러오기 (대기실에서만)
+// 백업 파일 불러오기 (대기실에서만). 예전 사진 전용 백업(version 1)도 그대로 불러옴
 app.post("/api/face/import", bigJson, async (req, res) => {
   const hostToken = req.get("x-host-token") || "";
   if (!(await isHostReq(req))) return res.status(403).json({ error: "운영자 권한을 확인할 수 없습니다." });
-  const list = req.body?.people;
-  if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "얼굴 카드 파일 형식이 아닙니다." });
-  const people = list.map((p: Record<string, unknown>) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
-  const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
+  const body = req.body ?? {};
+  const room = activeRoomData();
+  if (!room) return res.status(400).json({ error: "먼저 새 게임을 만들어 주세요." });
+  if (room.phase !== "lobby") return res.status(400).json({ error: "게임 시작 전 대기실에서만 불러올 수 있습니다." });
+  // 1) 규칙·질문
+  if (body.settings && typeof body.settings === "object") {
+    const r = await POST({ action: "update_settings", hostToken, settings: { ...body.settings } });
+    if (r.status >= 400) return res.status(r.status).json(r.body);
+  }
+  // 2) 불참 테이블
+  if (Array.isArray(body.excludedTables)) {
+    const want = new Set(body.excludedTables.filter((n: unknown) => Number.isInteger(n)) as number[]);
+    const current = activeRoomData()!;
+    for (let table = 1; table <= current.settings.tableCount; table++) {
+      const now = current.excludedTables.includes(table);
+      if (want.has(table) !== now && !current.teams.some(t => t.table === table)) await POST({ action: want.has(table) ? "exclude_table" : "include_table", hostToken, table });
+    }
+  }
+  // 3) 얼굴 카드 인물·사진
+  const list = body.people;
+  if (list !== undefined) {
+    if (!Array.isArray(list) || list.length > 40) return res.status(400).json({ error: "백업 파일 형식이 아닙니다." });
+    const people = list.map((p: Record<string, unknown>) => ({ name: typeof p.name === "string" ? p.name : "", aliases: Array.isArray(p.aliases) ? p.aliases : [], board: p.board, photo: p.photo ? savePhotoDataUrl(p.photo) : null }));
+    const r = await POST({ action: "face_set_people", hostToken, facePeople: people });
+    return res.status(r.status).json(r.body);
+  }
+  const r = await GET({ active: true, hostToken });
   res.status(r.status).json(r.body);
 });
 
