@@ -230,6 +230,39 @@ test("소수의 선택: 시간이 끝나면 자동 발표", async () => {
   assert.strictEqual((await get()).state.phase, "minority_result");
 });
 
+test("설정 전체 백업: 배포(데이터 삭제) 후 파일로 복구", async () => {
+  const created = await post({ action: "create", hostToken });
+  room = created.body.room;
+  const custom = { question: "우리 회사 최고의 점심 메뉴는?", options: ["국밥", "돈까스", "샐러드"] };
+  const s = created.body.state.settings;
+  assert.strictEqual((await H("update_settings", { settings: { ...s, tableCount: 12, minorityQuestions: [custom], minorityRounds: 1, minoritySeconds: 45, rouletteSpins: 5 } })).status, 200);
+  await H("include_table", { table: 1 });
+  assert.strictEqual((await H("exclude_table", { table: 7 })).status, 200);
+  const backup = await (await fetch(BASE + "/api/face/export", { headers: { "x-host-token": hostToken } })).json();
+  assert.strictEqual(backup.type, "all-in-macau-backup");
+  assert.strictEqual(backup.people.length, 20);
+  assert.ok(backup.people.every(p => p.photo && p.photo.startsWith("data:image/jpeg")));
+  // 배포 = 서버 재시작 + 데이터 삭제
+  await stop();
+  fs.rmSync(DATA, { recursive: true, force: true });
+  fs.mkdirSync(DATA);
+  await start();
+  hostToken = (await post({ action: "host_login", password: "pw1234" })).body.hostToken;
+  room = (await post({ action: "create", hostToken })).body.room;
+  let st = (await get({ "x-host-token": hostToken })).state;
+  assert.notDeepStrictEqual(st.settings.minorityQuestions, [custom]); // 기본값으로 돌아감
+  const r = await fetch(BASE + "/api/face/import", { method: "POST", headers: { "Content-Type": "application/json", "x-host-token": hostToken }, body: JSON.stringify(backup) });
+  assert.strictEqual(r.status, 200);
+  st = (await get({ "x-host-token": hostToken })).state;
+  assert.deepStrictEqual(st.settings.minorityQuestions, [custom]);
+  assert.strictEqual(st.settings.minoritySeconds, 45);
+  assert.strictEqual(st.settings.rouletteSpins, 5);
+  assert.deepStrictEqual(backup.excludedTables, [7]);
+  assert.deepStrictEqual(st.excludedTables, [7]); // 새 서버 기본값(1번 불참) 대신 백업 내용으로
+  assert.strictEqual(st.settings.facePeople.length, 20);
+  assert.strictEqual((await fetch(BASE + "/photos/" + st.settings.facePeople[0].photo)).status, 200);
+});
+
 test("비밀번호 5회 실패 시 잠금", async () => {
   for (let i = 0; i < 5; i++) await post({ action: "host_login", password: "nope" + i });
   assert.strictEqual((await post({ action: "host_login", password: "pw1234" })).status, 429);

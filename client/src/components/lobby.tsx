@@ -3,11 +3,6 @@ import type { Game } from "../types";
 
 /** 대기실: 빔에는 QR과 테이블 입장 현황, 폰에는 입장 완료 안내 */
 export default function Lobby({ game, view, participantUrl }: { game: Game; view: "team" | "beam"; participantUrl: string }) {
-  const R = game.rounds;
-  const rounds: [number, string, string][] = [
-    ...(R.face ? [[R.face, "얼굴 카드 매치", "같은 사람 사진 두 장 찾고 이름 맞히기"] as [number, string, string]] : []),
-    [R.minority, "소수의 선택", "가장 적은 테이블이 고른 답이 승리"],
-  ];
   // 불참 테이블도 빔에 보여 주되 "불참"으로 표시
   const numbers = Array.from({ length: game.settings.tableCount }, (_, i) => i + 1);
   return <div className={`game-grid ${view === "beam" ? "beam-lobby-grid" : ""}`}>
@@ -29,10 +24,7 @@ export default function Lobby({ game, view, participantUrl }: { game: Game; view
           return <span key={n} role="listitem" aria-label={`${n}번 테이블 ${absent ? "불참" : joined ? "입장 완료" : "대기 중"}`} className={`beam-table-number ${joined ? "occupied" : ""} ${absent ? "absent" : ""}`}><b>{n}</b>{absent && <small>불참</small>}</span>;
         })}
       </div>
-      <ol className="lobby-rounds" aria-label="오늘의 게임">
-        {rounds.map(([no, name, desc]) => <li key={no}><b>ROUND {no}</b><strong>{name}</strong><span>{desc}</span></li>)}
-      </ol>
-      <p className="lobby-win">모두 0칩으로 시작 · 마지막에 칩이 가장 많은 테이블이 우승!</p>
+      <p className="lobby-win">모두 0칩으로 시작 · 마지막에 칩이 가장 많은 테이블이 우승! 어떤 게임인지는 곧 공개됩니다.</p>
     </section>}
   </div>;
 }
