@@ -285,7 +285,7 @@ export default function App() {
     </header>
     {mode === "beam" && !session ? <div className="loading">{error || (activeKnown ? "운영자가 게임을 준비하고 있습니다." : "게임을 불러오는 중...")}</div>
       : !session ? <Landing mode={mode === "host" ? "host" : "team"} hostAuth={!!hostAuth} busy={busy} roomReady={!!room} activeKnown={activeKnown}
-          tableCount={tableCount} excluded={excluded} message={message} onLogin={login} onCreate={createGame} onJoin={join} />
+          tableCount={tableCount} message={message} onLogin={login} onCreate={createGame} onJoin={join} />
       : !game ? <div className="loading">{error || "게임을 불러오는 중..."}<button className="text-button" onClick={leave}>돌아가기</button></div>
       : <div className="shell game-shell">
         <div className="game-heading"><div>
