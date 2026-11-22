@@ -70,3 +70,9 @@
   .participant .intro-copy{max-width:none}
   .participant .entry{max-width:none;width:100%}
 }
+
+/* 룰렛 회전 중 (폰): 휠을 맨 위에 크게, 글자는 아래로 */
+.participant .roulette-phone-spin>.table{grid-row:1}
+.participant .roulette-phone-spin>.table .table-body{flex-direction:column;gap:14px;padding:18px 0 8px;text-align:center}
+.participant .roulette-phone-spin>.table .table-body .wheel-wrap{width:min(320px,86%)}
+.participant .roulette-phone-spin .wheel-caption strong{font-size:24px}

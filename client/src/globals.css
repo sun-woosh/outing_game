@@ -93,3 +93,13 @@ body{word-break:keep-all;overflow-wrap:anywhere}
 .bet-clock strong{font-size:22px;color:#dfbd7a;margin:0 2px}
 .bet-clock.urgent strong{color:#ff8a8a}
 .projector .bet-clock{font-size:18px}.projector .bet-clock strong{font-size:40px}
+
+/* 룰렛 휠 가운데 글자는 휠 크기에 맞춰 줄어듦 (폰에서 잘리지 않게) */
+.wheel-wrap{container-type:inline-size}
+.wheel-inside{padding:0 6%;text-align:center;gap:.6cqw}
+.wheel-inside span{font-size:clamp(5px,3.4cqw,24px);letter-spacing:.1em}
+.wheel-inside strong{font-size:clamp(14px,13cqw,92px);line-height:1}
+.wheel-inside i{font-size:clamp(7px,3.6cqw,26px)}
+.wheel-inside small{font-size:clamp(5px,3cqw,21px);letter-spacing:.16em}
+/* 작은 휠(폰 베팅 화면)에서는 2026만 표시 — 긴 글자가 테두리에 잘리지 않게 */
+@container (max-width:200px){.wheel-inside span,.wheel-inside small{display:none}}

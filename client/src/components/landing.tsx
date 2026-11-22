@@ -13,9 +13,9 @@ export default function Landing({ mode, hostAuth, busy, roomReady, activeKnown, 
   const host = mode === "host";
   return <div className="landing shell">
     <section className="intro">
-      <div className="eyebrow"><span /> 2026 DT OUTING <span /></div>
+      <div className="eyebrow"><span /> 2026 DT&amp;FIG OUTING <span /></div>
       <h1>ALL IN<br /><em>MACAU</em></h1>
-      <p className="intro-sub">2026 DT OUTING <span>✦</span> TEAM GAME</p>
+      <p className="intro-sub">2026 DT&amp;FIG OUTING <span>✦</span> TEAM GAME</p>
       <p className="intro-copy">테이블이 함께 상의하고, 함께 칩을 모으세요.<br />어떤 게임이 기다리고 있을지는 곧 공개됩니다.</p>
     </section>
     <section className="entry card">

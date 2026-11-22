@@ -98,18 +98,28 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
     </div>;
   }
 
+  const showClock = seconds !== null && (f.stage === "select" || f.stage === "name");
+  // 빔: 한 줄 머리글 (차례 · 상태 · 큰 남은 시간) → 카드를 최대한 크게
+  const beamHead = <div className="face-beam-head">
+    <div className="face-turn-badge"><small>지금 차례</small><strong>{tableName(game, f.currentTeamId)}</strong></div>
+    <div className="face-beam-status">
+      <small>ROUND {game.rounds?.face ?? 1} · 얼굴 카드 매치 · {boardLabel}{f.nextTeamId && f.nextTeamId !== f.currentTeamId ? ` · 다음 ${tableName(game, f.nextTeamId)}` : ""}</small>
+      <p className={`face-status ${f.stage}`}>{statusLine}</p>
+    </div>
+    <div className={`face-beam-clock ${showClock ? "" : "idle"} ${showClock && seconds! <= 5 ? "urgent" : ""}`} aria-live="off"><small>남은 시간</small><strong>{showClock ? seconds : "–"}</strong><span>초</span></div>
+  </div>;
   const board = <section className="face-card face-board-card">
-    <div className="face-top">
+    {view === "beam" ? beamHead : <><div className="face-top">
       <span>{view === "team" ? boardLabel : `ROUND ${game.rounds?.face ?? 1} · 얼굴 카드 매치 · ${boardLabel}`}</span>
-      {seconds !== null && (f.stage === "select" || f.stage === "name") && <span className="face-clock">남은 시간 <strong>{seconds}</strong>초</span>}
+      {showClock && <span className="face-clock">남은 시간 <strong>{seconds}</strong>초</span>}
     </div>
     <div className="face-turn">
       <div className={`face-turn-badge ${isMyTurn ? "mine" : ""}`}><small>지금 차례</small><strong>{tableName(game, f.currentTeamId)}</strong></div>
       <p className={`face-status ${f.stage}`}>{statusLine}</p>
       {view !== "team" && f.nextTeamId && f.nextTeamId !== f.currentTeamId && <span className="face-next">다음 {tableName(game, f.nextTeamId)}</span>}
-    </div>
+    </div></>}
     {f.stopAfterTurn && <p className="face-muted">이번 차례가 끝나면 {f.boardNo}판을 종료합니다.</p>}
-    <div ref={boardRef} className="face-board" role="list" aria-label="카드 판" style={{ "--cols": f.cols } as CSSProperties}>
+    <div className="face-board-fit"><div ref={boardRef} className="face-board" role="list" aria-label="카드 판" style={{ "--cols": f.cols } as CSSProperties}>
       {f.board.map(card => {
         const clickable = isMyTurn && f.stage === "select" && !card.open && !card.removed && !busy && seconds !== 0;
         return <button key={card.index} type="button" role="listitem" disabled={!clickable}
@@ -121,15 +131,17 @@ export default function FaceScreen({ game, view, busy, seconds, onPick, onAnswer
           </span>
         </button>;
       })}
-    </div>
+    </div></div>
   </section>;
 
   if (view === "team") return <div className="face-layout face-team"><MyChips team={myTeam} />{board}</div>;
-  // 빔·운영자: 왼쪽 카드판, 오른쪽은 이름 맞히기 또는 테이블별 누적 칩
-  return <div className={`face-layout face-${view} face-play-grid`}>
+  // 빔: 카드판만 크게 (순위는 각 판이 끝날 때만), 이름 맞히기 중에만 오른쪽에 사진·제출 현황
+  // 운영자: 왼쪽 카드판, 오른쪽은 이름 맞히기 또는 테이블별 누적 칩
+  const side = naming ? <NamePanel game={game} view={view} busy={busy} seconds={seconds} openPhoto={openCards[0]?.photo ?? null} onAnswer={onAnswer} />
+    : view === "host" ? <TeamChips game={game} title="테이블별 누적 칩" highlight={f.currentTeamId} /> : null;
+  return <div className={`face-layout face-${view} face-play-grid ${side ? "" : "face-solo"}`}>
     {board}
-    {naming ? <NamePanel game={game} view={view} busy={busy} seconds={seconds} openPhoto={openCards[0]?.photo ?? null} onAnswer={onAnswer} />
-      : <TeamChips game={game} title="테이블별 누적 칩" highlight={f.currentTeamId} />}
+    {side}
   </div>;
 }
 

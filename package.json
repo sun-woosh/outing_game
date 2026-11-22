@@ -2,7 +2,7 @@
   "name": "all-in-macau",
   "version": "3.0.0",
   "private": true,
-  "description": "2026 DT Outing - ALL IN MACAU (소수의 선택 + 룰렛 테이블 대항전). 로그인 없는 공개 실시간 서버",
+  "description": "2026 DT&FIG Outing - ALL IN MACAU (소수의 선택 + 룰렛 테이블 대항전). 로그인 없는 공개 실시간 서버",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
